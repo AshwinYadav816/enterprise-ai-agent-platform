@@ -134,10 +134,16 @@ async def synthesize_node(state: OrchestratorState) -> dict[str, Any]:
         HumanMessage(content="\n\n".join(p for p in parts if p)),
     ]
     text: list[str] = []
-    async for chunk in llm.get_chat_model("smart", streaming=True).astream(messages):
-        if isinstance(chunk.content, str) and chunk.content:
-            text.append(chunk.content)
-            _emit(Event(type="token", data={"text": chunk.content}))
+    try:
+        async for chunk in llm.get_chat_model("smart", streaming=True).astream(messages):
+            if isinstance(chunk.content, str) and chunk.content:
+                text.append(chunk.content)
+                _emit(Event(type="token", data={"text": chunk.content}))
+    except Exception:
+        log.exception("Synthesis failed")
+        _emit(Event(type="error", data={"message": "Could not write the final summary."}))
+        if not text:  # results are already on screen as cards; give a plain closing line
+            text = ["Done: " + ", ".join(o["agent"] for o in _ok(outputs)) + "."]
     return {"final_text": "".join(text)}
 
 

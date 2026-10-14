@@ -1,5 +1,6 @@
 """Document agent: summary, key points, entities and questions for selected documents."""
 
+import asyncio
 from collections.abc import AsyncIterator
 
 from pydantic import BaseModel, Field
@@ -66,13 +67,13 @@ async def run(ctx: AgentContext) -> AsyncIterator[Event]:
     text = await _load_text(ctx)
     s = get_settings()
     request = f"Request: {ctx.instruction}\n\n"
-    if count_tokens(text) <= s.long_input_tokens:
+    if await asyncio.to_thread(count_tokens, text) <= s.long_input_tokens:
         yield status_event("Analyzing…")
         insights = await ask(
             "smart", DocumentInsights, INSIGHTS_SYSTEM, request + wrap("document", text)
         )
     else:
-        parts = split_tokens(text, s.map_chunk_tokens)
+        parts = await asyncio.to_thread(split_tokens, text, s.map_chunk_tokens)
         partials: list[DocumentInsights] = []
         for i, part in enumerate(parts, start=1):
             yield status_event(f"Reading part {i} of {len(parts)}…")

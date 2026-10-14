@@ -1,5 +1,6 @@
 """Meeting agent: summary, decisions, action items and open questions from a transcript."""
 
+import asyncio
 import re
 from collections.abc import AsyncIterator
 
@@ -108,13 +109,13 @@ async def run(ctx: AgentContext) -> AsyncIterator[Event]:
     text = _meeting_text(ctx)
     s = get_settings()
     request = f"Request: {ctx.instruction}\n\n"
-    if count_tokens(text) <= s.long_input_tokens:
+    if await asyncio.to_thread(count_tokens, text) <= s.long_input_tokens:
         yield status_event("Summarizing the meeting…")
         summary = await ask(
             "smart", MeetingSummary, SUMMARY_SYSTEM, request + wrap("transcript", text)
         )
     else:
-        parts = split_tokens(text, s.map_chunk_tokens)
+        parts = await asyncio.to_thread(split_tokens, text, s.map_chunk_tokens)
         partials: list[MeetingSummary] = []
         for i, part in enumerate(parts, start=1):
             yield status_event(f"Reading transcript part {i} of {len(parts)}…")

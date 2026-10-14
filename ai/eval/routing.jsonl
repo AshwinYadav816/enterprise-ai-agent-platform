@@ -8,3 +8,5 @@
 {"query": "Summarize this file", "expected_agents": ["document"], "selected_docs": 1}
 {"query": "Write a weekly report on the mobile app project", "expected_agents": ["report"]}
 {"query": "Write a sprint report and email it to my manager", "expected_agents": ["report", "email"]}
+{"query": "How must containers run?", "expected_agents": ["research"]}
+{"query": "Explain how expense reimbursement works", "expected_agents": ["research"]}

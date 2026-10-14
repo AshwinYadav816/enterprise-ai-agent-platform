@@ -27,7 +27,9 @@ Agents:
 Rules:
 - Each instruction must be self-contained (the agent does not see the other steps).
 - Set uses_previous=true when a step needs an earlier step's output.
-- Questions about company facts, policies or data -> research, never chat.
+- Any request for information (facts, rules, how-to, explanations, numbers) -> research, \
+even if it sounds like general knowledge. chat is ONLY for greetings, thanks, small talk, or \
+questions about what this assistant can do.
 - Write instructions in the user's language and keep their specifics (names, dates, tone).
 
 Examples:
@@ -41,6 +43,9 @@ with owners and due dates"]
 
 Request: "hi, how are you?"
 -> [chat: "Reply to the greeting"]
+
+Request: "How should containers be run?"
+-> [research: "How should containers be run according to company policy?"]
 
 Request: "Summarize this file" (2 documents selected)
 -> [document: "Summarize the selected documents"]

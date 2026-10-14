@@ -16,7 +16,19 @@ MAX_XLSX_ROWS = 2000
 SCANNED_CHARS_PER_PAGE = 20
 
 
-class UnsupportedFileType(ValueError):
+class IngestError(ValueError):
+    """A document that can't be ingested; the message is safe to show to the user."""
+
+
+class UnsupportedFileType(IngestError):
+    pass
+
+
+class UnreadableDocument(IngestError):
+    pass
+
+
+class FileTooLarge(IngestError):
     pass
 
 
@@ -45,6 +57,8 @@ def load_pdf(data: bytes, warnings: list[str]) -> list[Page]:
     pages: list[Page] = []
     low_text: list[int] = []
     with pymupdf.open(stream=data, filetype="pdf") as doc:
+        if doc.needs_pass:
+            raise UnreadableDocument("This PDF is password-protected; upload an unlocked copy.")
         for i, pg in enumerate(doc, start=1):
             text = pg.get_text().strip()
             if len(text) < SCANNED_CHARS_PER_PAGE:
@@ -128,5 +142,14 @@ def load_document(data: bytes, filename: str) -> tuple[list[Page], list[str]]:
     loader = LOADERS.get(ext)
     if loader is None:
         raise UnsupportedFileType(f"Unsupported file type: {ext or filename}")
+    if not data:
+        raise UnreadableDocument(f"{filename} is empty.")
     warnings: list[str] = []
-    return loader(data, warnings), warnings
+    try:
+        return loader(data, warnings), warnings
+    except IngestError:
+        raise
+    except Exception as exc:  # corrupt or mislabelled file: library-specific error types
+        raise UnreadableDocument(
+            f"Could not read {filename}: the file is damaged or not a valid {ext[1:].upper()}."
+        ) from exc

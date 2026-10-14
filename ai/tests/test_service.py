@@ -8,6 +8,7 @@ import pytest
 
 from dev_api import app
 from eap_ai import llm, service
+from eap_ai.config import get_settings
 from eap_ai.orchestrator.state import Plan, Step
 from eap_ai.rag.retriever import StandaloneQuestion
 from eap_ai.schemas import AgentName, AgentRequest, ChatMessage, DocMeta, Event, UserCtx
@@ -164,3 +165,29 @@ async def test_api_generates_doc_id_and_uses_header_defaults(client: httpx.Async
     r = await client.post("/ingest", files=files, data={"allowed_roles": "employee"})
     assert r.status_code == 200 and len(r.json()["doc_id"]) == 36  # uuid4
     assert (await client.get("/health")).json() == {"status": "ok"}
+
+
+async def test_ingest_rejects_oversized_and_unsupported_before_parsing(
+    chat: FakeChatModel, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    monkeypatch.setenv("MAX_UPLOAD_MB", "1")
+    get_settings.cache_clear()
+    meta = DocMeta(doc_id="d", org_id="org1", owner_id="u1", allowed_roles=["hr"])
+    with pytest.raises(service.FileTooLarge, match="1 MB"):
+        await service.ingest_document(b"x" * (1024 * 1024 + 1), "big.pdf", meta)
+    with pytest.raises(service.UnsupportedFileType):
+        await service.ingest_document(b"hello", "notes.txt", meta)
+    assert llm.get_embedder().calls == 0  # nothing parsed or embedded
+
+
+async def test_api_maps_ingest_errors_to_http_codes(
+    client: httpx.AsyncClient, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    corrupt = {"file": ("bad.pdf", b"not a pdf", "application/pdf")}
+    r = await client.post("/ingest", files=corrupt, data={"allowed_roles": "hr"}, headers=HEADERS)
+    assert r.status_code == 422 and "damaged" in r.json()["detail"]
+    monkeypatch.setenv("MAX_UPLOAD_MB", "0")
+    get_settings.cache_clear()
+    pdf = {"file": ("p.pdf", _pdf("x"), "application/pdf")}
+    r = await client.post("/ingest", files=pdf, data={"allowed_roles": "hr"}, headers=HEADERS)
+    assert r.status_code == 413

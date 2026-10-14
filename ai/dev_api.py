@@ -14,8 +14,8 @@ from fastapi.responses import StreamingResponse
 from pydantic import BaseModel, Field
 
 from eap_ai import service
-from eap_ai.ingestion.loaders import UnsupportedFileType
 from eap_ai.schemas import AgentName, AgentRequest, ChatMessage, DocMeta, IngestResult, UserCtx
+from eap_ai.service import FileTooLarge, IngestError, UnsupportedFileType
 
 app = FastAPI(title="EAP-AI dev API", version="0.1.0")
 
@@ -69,8 +69,15 @@ async def ingest(
         result: IngestResult = await service.ingest_document(
             await file.read(), file.filename or "upload", meta
         )
-    except UnsupportedFileType as exc:
-        raise HTTPException(415, str(exc)) from exc
+    except IngestError as exc:
+        code = (
+            413
+            if isinstance(exc, FileTooLarge)
+            else 415
+            if isinstance(exc, UnsupportedFileType)
+            else 422
+        )
+        raise HTTPException(code, str(exc)) from exc
     return {"doc_id": meta.doc_id, **result.model_dump()}
 
 

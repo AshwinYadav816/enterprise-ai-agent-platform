@@ -1,0 +1,7 @@
+# Whitelist: only what the image needs. Keeps .env (secrets), .venv, tests and eval data out.
+*
+!pyproject.toml
+!uv.lock
+!src/
+**/__pycache__
+**/*.pyc

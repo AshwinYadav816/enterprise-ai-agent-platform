@@ -6,6 +6,7 @@ import pytest
 
 from eap_ai import llm, service
 from eap_ai.agents.base import AgentContext
+from eap_ai.agents.chat import CHAT_SYSTEM
 from eap_ai.agents.email import EmailIntent, EmailOutput, EmailTask
 from eap_ai.agents.meeting import ActionItem, MeetingSummary
 from eap_ai.orchestrator import graph
@@ -168,8 +169,10 @@ async def test_chat_uses_summary_without_retrieval(models: Models) -> None:
     events = await _run(query="thanks!", history=history, history_summary="User likes brevity.")
     assert models.embedder.calls == 0
     (messages,) = models.smart.calls
-    assert "User likes brevity." in messages[0].content
-    assert [m.content for m in messages[1:]] == ["hello", "hi", "thanks!"]
+    assert messages[0].content == CHAT_SYSTEM  # system prompt stays static
+    assert [m.content for m in messages[1:3]] == ["hello", "hi"]
+    assert messages[3].content.startswith("<conversation>\nUser likes brevity.\n</conversation>")
+    assert messages[3].content.endswith("thanks!")
     assert events[-1].data["answer"] == "Hi! How can I help?"
 
 
@@ -229,3 +232,25 @@ async def test_agent_input_error_message_is_shown(models: Models) -> None:
     (error,) = [e for e in events if e.type == "error"]
     assert error.data["message"] == "Please provide a meeting transcript to summarize."
     assert events[-1].type == "done" and events[-1].data["errors"] == 1
+
+
+async def test_synthesis_failure_keeps_step_results(
+    models: Models, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    models.fast.structured[Plan] = _plan((AgentName.chat, False), (AgentName.chat, False))
+    real_stream = FakeChatModel._astream
+    calls = {"n": 0}
+
+    async def flaky(self: FakeChatModel, *args: object, **kwargs: object):  # type: ignore[no-untyped-def]
+        calls["n"] += 1
+        if calls["n"] == 3:  # the two chat steps succeed, the wrap-up fails
+            raise RuntimeError("model down")
+        async for chunk in real_stream(self, *args, **kwargs):  # type: ignore[arg-type]
+            yield chunk
+
+    monkeypatch.setattr(FakeChatModel, "_astream", flaky)
+    events = await _run()
+    assert [e.data["agent"] for e in events if e.type == "result"] == ["chat", "chat"]
+    (error,) = [e for e in events if e.type == "error"]
+    assert error.data["message"] == "Could not write the final summary."
+    assert events[-1].type == "done" and events[-1].data["answer"] == "Done: chat, chat."

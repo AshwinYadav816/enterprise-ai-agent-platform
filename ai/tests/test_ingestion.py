@@ -14,6 +14,7 @@ from eap_ai.ingestion.chunker import chunk_pages
 from eap_ai.ingestion.loaders import (
     MAX_XLSX_ROWS,
     Page,
+    UnreadableDocument,
     UnsupportedFileType,
     load_document,
 )
@@ -250,3 +251,27 @@ async def test_non_rate_limit_error_is_not_retried(
     monkeypatch.setattr(store, "aembed_documents", broken)
     with pytest.raises(RuntimeError, match="401"):
         await pipeline.ingest(pdf_bytes, "policy.pdf", _meta())
+
+
+@pytest.mark.parametrize(
+    ("name", "data"),
+    [
+        ("bad.pdf", b"not a pdf"),
+        ("bad.docx", b"junk"),
+        ("bad.xlsx", b"junk"),
+        ("bad.pptx", b"PK junk"),
+    ],
+)
+def test_corrupt_files_raise_clear_error(name: str, data: bytes) -> None:
+    with pytest.raises(UnreadableDocument, match="damaged or not a valid"):
+        load_document(data, name)
+
+
+def test_empty_and_password_protected_files() -> None:
+    with pytest.raises(UnreadableDocument, match="empty"):
+        load_document(b"", "a.pdf")
+    doc = pymupdf.open()
+    doc.new_page().insert_text((72, 72), "secret")
+    locked = doc.tobytes(encryption=pymupdf.PDF_ENCRYPT_AES_256, owner_pw="o", user_pw="u")
+    with pytest.raises(UnreadableDocument, match="password-protected"):
+        load_document(locked, "locked.pdf")

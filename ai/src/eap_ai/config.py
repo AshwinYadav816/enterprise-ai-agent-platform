@@ -16,6 +16,7 @@ class Settings(BaseSettings):
     embedding_model: str = "mistral-embed"
     fast_reasoning_effort: str = "none"
     embed_batch_size: int = 16
+    max_upload_mb: int = 25  # ingest rejects larger files
     llm_timeout: int = 60
     llm_max_retries: int = 2  # retries after the first attempt (429 / 5xx / timeouts)
     llm_retry_backoff: float = 1.0  # seconds; doubles each retry

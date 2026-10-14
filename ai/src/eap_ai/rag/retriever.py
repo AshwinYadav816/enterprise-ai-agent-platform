@@ -1,5 +1,6 @@
 """Retrieval: embed -> filtered dense search -> threshold -> MMR -> token budget."""
 
+import asyncio
 import math
 from collections.abc import Sequence
 from functools import lru_cache
@@ -94,7 +95,7 @@ async def retrieve(query: str, user: UserCtx, doc_ids: Sequence[str] | None = No
     hits = [h for h in hits if h.score >= s.score_threshold]
     order = mmr(query_vec, [_vector(h) for h in hits], s.final_k, s.mmr_lambda)
 
-    enc = _encoding()
+    enc = await asyncio.to_thread(_encoding)  # first call may download the tokenizer
     sources: list[Source] = []
     used = 0
     for i in order:
