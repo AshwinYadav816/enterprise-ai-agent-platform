@@ -1,5 +1,6 @@
 import json
 from collections.abc import AsyncIterator
+from typing import Any
 
 import httpx
 import pymupdf
@@ -7,8 +8,9 @@ import pytest
 
 from dev_api import app
 from eap_ai import llm, service
+from eap_ai.orchestrator.state import Plan, Step
 from eap_ai.rag.retriever import StandaloneQuestion
-from eap_ai.schemas import AgentRequest, ChatMessage, DocMeta, Event, UserCtx
+from eap_ai.schemas import AgentName, AgentRequest, ChatMessage, DocMeta, Event, UserCtx
 from eap_ai.service import SUMMARY_MAX_WORDS, HistorySummary
 from eap_ai.vectorstore import qdrant
 from tests.fakes import FakeChatModel, FakeEmbedder
@@ -28,6 +30,7 @@ async def chat(monkeypatch: pytest.MonkeyPatch) -> AsyncIterator[FakeChatModel]:
         structured={
             HistorySummary: HistorySummary(summary="User asked about leave; 24 days per year."),
             StandaloneQuestion: StandaloneQuestion(question="how many leave days"),
+            Plan: Plan(steps=[Step(agent=AgentName.research, instruction="leave days?")]),
         },
     )
     llm.clear_caches()
@@ -59,12 +62,14 @@ async def test_ingest_run_delete_round_trip(chat: FakeChatModel) -> None:
     assert result.chunks == 1 and result.pages == 1
 
     events = await _events(AgentRequest(query="leave days?", user=HR))
-    assert [e.type for e in events][0] == "sources" and events[-1].type == "done"
-    assert events[0].data["sources"][0]["doc_id"] == "d1"
+    sources = next(e for e in events if e.type == "sources")
+    assert sources.data["sources"][0]["doc_id"] == "d1"
+    assert events[-1].type == "done" and events[-1].data["agents"] == ["research"]
 
     await service.delete_document("d1", "org1")
     events = await _events(AgentRequest(query="leave days?", user=HR))
-    assert events[0].data["sources"] == [] and events[-1].data["found"] is False
+    result = next(e for e in events if e.type == "result")
+    assert result.data["output"]["sources"] == [] and result.data["output"]["found"] is False
 
 
 async def test_run_never_raises(chat: FakeChatModel, monkeypatch: pytest.MonkeyPatch) -> None:
@@ -73,8 +78,9 @@ async def test_run_never_raises(chat: FakeChatModel, monkeypatch: pytest.MonkeyP
 
     monkeypatch.setattr(llm.get_embedder(), "aembed_query", boom)
     events = await _events(AgentRequest(query="anything", user=HR))
-    assert [e.type for e in events] == ["error"]
-    assert "qdrant down" not in events[0].data["message"]  # no internals leaked
+    errors = [e for e in events if e.type == "error"]
+    assert len(errors) == 1 and events[-1].type == "done" and events[-1].data["errors"] == 1
+    assert "qdrant down" not in errors[0].data["message"]  # no internals leaked
 
 
 async def test_summarize_history(chat: FakeChatModel) -> None:
@@ -110,8 +116,12 @@ async def client(chat: FakeChatModel) -> AsyncIterator[httpx.AsyncClient]:
 HEADERS = {"X-User-Id": "u1", "X-Org-Id": "org1", "X-Roles": "hr, employee"}
 
 
-def _sse(body: str) -> list[dict[str, object]]:
+def _sse(body: str) -> list[dict[str, Any]]:
     return [json.loads(line[6:]) for line in body.splitlines() if line.startswith("data: ")]
+
+
+def _first(events: list[dict[str, Any]], kind: str) -> dict[str, Any]:
+    return next(e for e in events if e["type"] == kind)
 
 
 async def test_api_ingest_chat_delete(client: httpx.AsyncClient) -> None:
@@ -126,17 +136,18 @@ async def test_api_ingest_chat_delete(client: httpx.AsyncClient) -> None:
     assert r.status_code == 200
     assert r.headers["content-type"].startswith("text/event-stream")
     events = _sse(r.text)
-    assert events[0]["type"] == "sources" and events[-1]["type"] == "done"
+    assert _first(events, "sources")["data"]["sources"][0]["doc_id"] == "d1"
+    assert events[-1]["type"] == "done"
     assert events[-1]["data"]["answer"] == "Employees get 24 days of leave [1]."
 
     # another org (from headers) cannot see it
     other = {**HEADERS, "X-Org-Id": "org2"}
     r = await client.post("/chat", json={"query": "leave days?"}, headers=other)
-    assert _sse(r.text)[0]["data"]["sources"] == []
+    assert _first(_sse(r.text), "sources")["data"]["sources"] == []
 
     assert (await client.delete("/docs/d1", headers=HEADERS)).status_code == 204
     r = await client.post("/chat", json={"query": "leave days?"}, headers=HEADERS)
-    assert _sse(r.text)[-1]["data"]["found"] is False
+    assert _first(_sse(r.text), "result")["data"]["output"]["found"] is False
 
 
 async def test_api_rejects_unsupported_and_empty_roles(client: httpx.AsyncClient) -> None:

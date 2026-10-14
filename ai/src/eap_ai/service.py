@@ -6,19 +6,29 @@ Contract:
     async for event in run(request): ...            # Event stream, forward as SSE
     await summarize_history(messages) -> str
 
-Event stream for run(): "sources" -> "token"* -> "done", or an "error" event if
-something fails. The stream never raises.
+Event stream for run() (forward each one as an SSE `data:` line):
+    status "Planning…" -> status "Plan: meeting → email"
+    per step: agent {name, step, total, instruction} -> that agent's events
+              (status / sources / token / result, or error)
+    [token events of a short wrap-up when the plan has more than one step]
+    done {answer, agents, errors}
+"result" events carry structured output (email, meeting summary, report…) for UI cards.
+The stream never raises; failures become "error" events and "done" is always last.
+
+Chat history: the backend owns it. When history exceeds 12 messages, call
+summarize_history() on the older ones and send history_summary + the last 6 messages.
 """
 
 import logging
 from collections.abc import AsyncIterator, Sequence
+from typing import Any
 
 from langchain_core.messages import HumanMessage, SystemMessage
 from pydantic import BaseModel, Field
 
 from eap_ai import llm
 from eap_ai.ingestion.pipeline import ingest
-from eap_ai.rag.answer import answer_stream
+from eap_ai.orchestrator.graph import build_graph
 from eap_ai.schemas import AgentRequest, ChatMessage, DocMeta, Event, IngestResult
 from eap_ai.vectorstore import qdrant
 
@@ -51,13 +61,28 @@ async def delete_document(doc_id: str, org_id: str) -> None:
 
 
 async def run(req: AgentRequest) -> AsyncIterator[Event]:
-    """Answer a request as a stream of Events. Temporary: RAG only (orchestrator in phase 6)."""
+    """Route the request to agents and stream Events. Never raises; always ends with "done"."""
+    final: dict[str, Any] = {}
     try:
-        async for event in answer_stream(req.query, req.user, req.history, req.doc_ids):
-            yield event
+        async for mode, chunk in build_graph().astream(
+            {"request": req}, stream_mode=["custom", "values"]
+        ):
+            if mode == "custom":
+                yield Event.model_validate(chunk)
+            else:
+                final = chunk
     except Exception:
         log.exception("run() failed for user %s", req.user.user_id)
         yield Event(type="error", data={"message": "Something went wrong while answering."})
+    outputs = final.get("outputs", [])
+    yield Event(
+        type="done",
+        data={
+            "answer": final.get("final_text", ""),
+            "agents": [o.get("agent") for o in outputs],
+            "errors": sum("error" in o for o in outputs),
+        },
+    )
 
 
 def _cap_words(text: str, limit: int) -> str:

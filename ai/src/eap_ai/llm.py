@@ -6,6 +6,7 @@ from typing import Literal
 from langchain_core.embeddings import Embeddings
 from langchain_core.language_models import BaseChatModel
 from langchain_mistralai import ChatMistralAI, MistralAIEmbeddings
+from tokenizers import Tokenizer, models, pre_tokenizers  # installed with langchain-mistralai
 
 from eap_ai.config import get_settings
 
@@ -37,6 +38,18 @@ def get_chat_model(tier: Tier, streaming: bool = False) -> BaseChatModel:
     )
 
 
+def _offline_tokenizer() -> Tokenizer:
+    """Word-count tokenizer for MistralAIEmbeddings' internal batch sizing.
+
+    Without one, the library downloads a tokenizer from HuggingFace on first use (~30 s on a
+    cold start, every fresh container). Our pipeline already batches by embed_batch_size, so a
+    whitespace word count is accurate enough.
+    """
+    tokenizer = Tokenizer(models.WordLevel(vocab={"[UNK]": 0}, unk_token="[UNK]"))
+    tokenizer.pre_tokenizer = pre_tokenizers.Whitespace()
+    return tokenizer
+
+
 @lru_cache
 def get_embedder() -> Embeddings:
     s = get_settings()
@@ -45,6 +58,7 @@ def get_embedder() -> Embeddings:
         api_key=s.mistral_api_key,
         max_retries=s.llm_max_retries,
         timeout=s.llm_timeout,
+        tokenizer=_offline_tokenizer(),
     )
 
 

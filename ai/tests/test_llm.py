@@ -48,9 +48,9 @@ def test_reasoning_effort_only_when_supported() -> None:
 
 
 def test_embedder_config_and_cache() -> None:
-    with pytest.warns(UserWarning):
-        emb = llm.get_embedder()
+    emb = llm.get_embedder()  # fixture makes any HuggingFace download raise
     assert isinstance(emb, MistralAIEmbeddings)
+    assert len(emb.tokenizer.encode_batch(["three word text"])[0]) == 3  # offline word count
     assert emb.model == "mistral-embed"
     assert emb.max_retries == 2 and emb.timeout == 60
     assert llm.get_embedder() is emb
