@@ -1,0 +1,10 @@
+{"query": "How many vacation days do employees get?", "expected_agents": ["research"]}
+{"query": "What does our travel policy say about business class?", "expected_agents": ["research"]}
+{"query": "hi, how are you today?", "expected_agents": ["chat"]}
+{"query": "thanks, that was helpful!", "expected_agents": ["chat"]}
+{"query": "Summarize this meeting", "expected_agents": ["meeting"], "transcript": true}
+{"query": "Summarize this meeting and email the action items to the team", "expected_agents": ["meeting", "email"], "transcript": true}
+{"query": "Fix the grammar in this email: hi team, we is going to launch on friday", "expected_agents": ["email"]}
+{"query": "Summarize this file", "expected_agents": ["document"], "selected_docs": 1}
+{"query": "Write a weekly report on the mobile app project", "expected_agents": ["report"]}
+{"query": "Write a sprint report and email it to my manager", "expected_agents": ["report", "email"]}

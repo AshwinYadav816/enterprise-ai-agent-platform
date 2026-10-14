@@ -1,0 +1,5 @@
+{"question": "How many days of paid annual leave do employees get?", "expected_doc": "hr_policy.pdf", "expected_answer_keywords": ["24 days"], "answerable": true}
+{"question": "What is the hotel limit per night when travelling?", "expected_doc": "travel_policy.docx", "expected_answer_keywords": ["150", "per night"], "answerable": true}
+{"question": "What was the Q3 revenue for the North region?", "expected_doc": "q3_sales.xlsx", "expected_answer_keywords": ["120000"], "answerable": true}
+{"question": "What is the company's parental leave policy?", "expected_doc": null, "expected_answer_keywords": [], "answerable": false}
+{"question": "Who won the football world cup in 2022?", "expected_doc": null, "expected_answer_keywords": [], "answerable": false}
