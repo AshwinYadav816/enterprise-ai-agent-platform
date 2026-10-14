@@ -56,9 +56,12 @@ async def embedding_dim() -> int:
     return _embedding_dim
 
 
+_CACHED_FACTORIES = (get_chat_model, get_embedder)  # survive monkeypatching in tests
+
+
 def clear_caches() -> None:
     """Drop cached clients (used by tests and after settings change)."""
     global _embedding_dim
     _embedding_dim = None
-    get_chat_model.cache_clear()
-    get_embedder.cache_clear()
+    for factory in _CACHED_FACTORIES:
+        factory.cache_clear()
