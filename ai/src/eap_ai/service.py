@@ -12,7 +12,8 @@ Event stream for run() (forward each one as an SSE `data:` line):
     per step: agent {name, step, total, instruction} -> that agent's events
               (status / sources / token / result, or error)
     [token events of a short wrap-up when the plan has more than one step]
-    done {answer, agents, errors}
+    done {answer, agents, errors, usage}
+        usage = {input_tokens, output_tokens, total_tokens, by_model: {model: {...}}}
 "result" events carry structured output (email, meeting summary, report…) for UI cards;
 report and meeting results also carry "markdown", ready for export_pdf().
 The stream never raises; failures become "error" events and "done" is always last.
@@ -26,9 +27,10 @@ Rolling chat summary (the backend owns history; this module is stateless):
 """
 
 import logging
-from collections.abc import AsyncIterator, Sequence
+from collections.abc import AsyncIterator, Mapping, Sequence
 from typing import Any
 
+from langchain_core.callbacks import UsageMetadataCallbackHandler
 from langchain_core.messages import HumanMessage, SystemMessage
 from pydantic import BaseModel, Field
 
@@ -72,9 +74,12 @@ async def delete_document(doc_id: str, org_id: str) -> None:
 async def run(req: AgentRequest) -> AsyncIterator[Event]:
     """Route the request to agents and stream Events. Never raises; always ends with "done"."""
     final: dict[str, Any] = {}
+    usage_handler = UsageMetadataCallbackHandler()  # sums tokens over every LLM call
     try:
         async for mode, chunk in build_graph().astream(
-            {"request": req}, stream_mode=["custom", "values"]
+            {"request": req},
+            config={"callbacks": [usage_handler]},
+            stream_mode=["custom", "values"],
         ):
             if mode == "custom":
                 yield Event.model_validate(chunk)
@@ -84,14 +89,34 @@ async def run(req: AgentRequest) -> AsyncIterator[Event]:
         log.exception("run() failed for user %s", req.user.user_id)
         yield Event(type="error", data={"message": "Something went wrong while answering."})
     outputs = final.get("outputs", [])
+    agents = [o.get("agent") for o in outputs]
+    usage = usage_summary(usage_handler.usage_metadata)
+    log.info(
+        "AI usage org=%s user=%s agents=%s input=%d output=%d total=%d",
+        req.user.org_id,
+        req.user.user_id,
+        agents,
+        usage["input_tokens"],
+        usage["output_tokens"],
+        usage["total_tokens"],
+    )
     yield Event(
         type="done",
         data={
             "answer": final.get("final_text", ""),
-            "agents": [o.get("agent") for o in outputs],
+            "agents": agents,
             "errors": sum("error" in o for o in outputs),
+            "usage": usage,
         },
     )
+
+
+def usage_summary(by_model: Mapping[str, Mapping[str, Any]]) -> dict[str, Any]:
+    """Token totals for one request plus a per-model breakdown (for the admin dashboard)."""
+    fields = ("input_tokens", "output_tokens", "total_tokens")
+    per_model = {m: {f: int(u.get(f, 0)) for f in fields} for m, u in by_model.items()}
+    totals = {f: sum(u[f] for u in per_model.values()) for f in fields}
+    return {**totals, "by_model": per_model}
 
 
 def _cap_words(text: str, limit: int) -> str:

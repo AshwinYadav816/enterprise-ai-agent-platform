@@ -4,6 +4,7 @@ import asyncio
 import logging
 
 from eap_ai import llm
+from eap_ai.cache import cached_embed_documents
 from eap_ai.config import get_settings
 from eap_ai.ingestion.chunker import chunk_pages
 from eap_ai.ingestion.loaders import load_document
@@ -41,12 +42,17 @@ async def _embed_batch(texts: list[str]) -> list[list[float]]:
     raise AssertionError("unreachable")
 
 
-async def embed_texts(texts: list[str]) -> list[list[float]]:
+async def _embed_uncached(texts: list[str]) -> list[list[float]]:
     size = get_settings().embed_batch_size
     vectors: list[list[float]] = []
     for i in range(0, len(texts), size):
         vectors.extend(await _embed_batch(texts[i : i + size]))
     return vectors
+
+
+async def embed_texts(texts: list[str]) -> list[list[float]]:
+    """Embed chunk texts; unchanged chunks come from the cache (no API call)."""
+    return await cached_embed_documents(texts, _embed_uncached)
 
 
 async def ingest(file_bytes: bytes, filename: str, meta: DocMeta) -> IngestResult:

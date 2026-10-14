@@ -17,11 +17,17 @@ class Settings(BaseSettings):
     fast_reasoning_effort: str = "none"
     embed_batch_size: int = 16
     llm_timeout: int = 60
-    llm_max_retries: int = 2
+    llm_max_retries: int = 2  # retries after the first attempt (429 / 5xx / timeouts)
+    llm_retry_backoff: float = 1.0  # seconds; doubles each retry
 
     # Qdrant
     qdrant_url: str = "http://localhost:6333"
     qdrant_api_key: SecretStr | None = None
+
+    # Cache (Redis if redis_url is set, else in-process LRU)
+    redis_url: str | None = None
+    cache_max_items: int = 5000  # in-process LRU size (~4 KB per 1024-dim vector)
+    query_embedding_ttl: int = 3600  # seconds
 
     # Chunking
     chunk_size: int = 600

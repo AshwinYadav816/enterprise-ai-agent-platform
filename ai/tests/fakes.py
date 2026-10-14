@@ -26,6 +26,8 @@ class FakeChatModel(BaseChatModel):
     """
 
     text: str = "fake answer"
+    model_name: str = "fake-model"
+    usage: dict[str, int] | None = None  # reported like Mistral's usage_metadata when set
     structured: dict[type[BaseModel], BaseModel | list[BaseModel]] = Field(default_factory=dict)
     calls: list[Any] = Field(default_factory=list)
     structured_calls: list[tuple[type[BaseModel], Any]] = Field(default_factory=list)
@@ -65,7 +67,12 @@ class FakeChatModel(BaseChatModel):
         **kwargs: Any,
     ) -> ChatResult:
         self.calls.append(messages)
-        return ChatResult(generations=[ChatGeneration(message=AIMessage(content=self.text))])
+        message = AIMessage(
+            content=self.text,
+            usage_metadata=self.usage,  # type: ignore[arg-type]
+            response_metadata={"model_name": self.model_name},
+        )
+        return ChatResult(generations=[ChatGeneration(message=message)])
 
     def _stream(
         self,
@@ -91,6 +98,14 @@ class FakeChatModel(BaseChatModel):
             if run_manager:
                 await run_manager.on_llm_new_token(tok, chunk=chunk)
             yield chunk
+        if self.usage:  # Mistral sends usage and model name on the final chunk
+            yield ChatGenerationChunk(
+                message=AIMessageChunk(
+                    content="",
+                    usage_metadata=self.usage,  # type: ignore[arg-type]
+                    response_metadata={"model_name": self.model_name},
+                )
+            )
 
 
 class FakeEmbedder(Embeddings):

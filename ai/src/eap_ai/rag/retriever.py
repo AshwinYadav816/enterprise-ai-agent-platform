@@ -10,6 +10,7 @@ from pydantic import BaseModel, Field
 from qdrant_client import models
 
 from eap_ai import llm
+from eap_ai.cache import cached_embed_query
 from eap_ai.config import get_settings
 from eap_ai.ingestion.chunker import TIKTOKEN_ENCODING
 from eap_ai.rag.prompts import REWRITE_SYSTEM, rewrite_user_message
@@ -86,7 +87,7 @@ async def rewrite_query(query: str, history: Sequence[ChatMessage]) -> str:
 async def retrieve(query: str, user: UserCtx, doc_ids: Sequence[str] | None = None) -> list[Source]:
     """Sources the user may see, most relevant and diverse first, within the token budget."""
     s = get_settings()
-    query_vec = await llm.get_embedder().aembed_query(query)
+    query_vec = await cached_embed_query(query)
     hits = await qdrant.search(
         query_vec, user.org_id, user.roles, doc_ids=doc_ids, limit=s.top_k, with_vectors=True
     )

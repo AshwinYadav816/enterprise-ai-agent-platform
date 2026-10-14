@@ -85,6 +85,12 @@ async def _seed() -> None:
     await qdrant.upsert_chunks(meta, "policy.pdf", [chunk], vectors)
 
 
+def _done(events: list[Event]) -> dict[str, object]:
+    """The done event's data without the usage block (covered in test_cache.py)."""
+    assert events[-1].type == "done" and "usage" in events[-1].data
+    return {k: v for k, v in events[-1].data.items() if k != "usage"}
+
+
 def _types(events: list[Event]) -> list[str]:
     return [e.type for e in events]
 
@@ -117,7 +123,7 @@ async def test_single_step_research(models: Models) -> None:
         "instruction": "do research",
     }
     assert "Wrapping up…" not in _statuses(events)  # no synthesis for one step
-    assert events[-1].data == {
+    assert _done(events) == {
         "answer": "Employees get 24 days of leave [1].",
         "agents": ["research"],
         "errors": 0,
@@ -143,13 +149,13 @@ async def test_two_step_meeting_then_email(models: Models) -> None:
     last_result = max(i for i, e in enumerate(events) if e.type == "result")
     tail = _types(events)[last_result + 1 :]
     assert tail[0] == "status" and set(tail[1:-1]) == {"token"} and tail[-1] == "done"
-    assert events[-1].data == {"answer": WRAP_UP, "agents": ["meeting", "email"], "errors": 0}
+    assert _done(events) == {"answer": WRAP_UP, "agents": ["meeting", "email"], "errors": 0}
 
 
 async def test_force_agent_skips_router(models: Models) -> None:
     events = await _run(query="Summarize", transcript=TRANSCRIPT, force_agent="meeting")
     assert _plan_calls(models) == []  # router LLM never called
-    assert events[-1].data == {"answer": "Beta ships Friday.", "agents": ["meeting"], "errors": 0}
+    assert _done(events) == {"answer": "Beta ships Friday.", "agents": ["meeting"], "errors": 0}
 
 
 async def test_chat_uses_summary_without_retrieval(models: Models) -> None:

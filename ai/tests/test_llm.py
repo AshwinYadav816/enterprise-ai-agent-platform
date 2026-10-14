@@ -52,7 +52,7 @@ def test_embedder_config_and_cache() -> None:
     assert isinstance(emb, MistralAIEmbeddings)
     assert len(emb.tokenizer.encode_batch(["three word text"])[0]) == 3  # offline word count
     assert emb.model == "mistral-embed"
-    assert emb.max_retries == 2 and emb.timeout == 60
+    assert emb.max_retries == 3 and emb.timeout == 60  # 3 attempts = 2 retries
     assert llm.get_embedder() is emb
 
 
