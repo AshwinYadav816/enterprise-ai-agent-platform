@@ -41,6 +41,23 @@ class MeetingSummary(BaseModel):
     action_items: list[ActionItem] = Field(default_factory=list)
     open_questions: list[str] = Field(default_factory=list)
 
+    def to_markdown(self, title: str = "Meeting summary") -> str:
+        def cell(text: str) -> str:
+            return text.replace("|", "\\|").replace("\n", " ")
+
+        lines = [f"# {title}", "", self.summary.strip()]
+        if self.key_decisions:
+            lines += ["", "## Key decisions", *[f"- {d}" for d in self.key_decisions]]
+        if self.action_items:
+            lines += ["", "## Action items", "", "| Task | Owner | Due |", "|---|---|---|"]
+            lines += [
+                f"| {cell(a.task)} | {cell(a.owner)} | {cell(a.due_date or '—')} |"
+                for a in self.action_items
+            ]
+        if self.open_questions:
+            lines += ["", "## Open questions", *[f"- {q}" for q in self.open_questions]]
+        return "\n".join(lines) + "\n"
+
 
 _RULES = f"""Rules:
 - Use only what is said in the transcript. Never invent facts, names or dates.
@@ -107,4 +124,5 @@ async def run(ctx: AgentContext) -> AsyncIterator[Event]:
         summary = await ask(
             "smart", MeetingSummary, REDUCE_SYSTEM, request + partials_json(partials)
         )
-    yield result_event(AgentName.meeting, enforce_owners(summary, text))
+    summary = enforce_owners(summary, text)
+    yield result_event(AgentName.meeting, summary, markdown=summary.to_markdown())

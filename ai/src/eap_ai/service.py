@@ -5,6 +5,7 @@ Contract:
     await delete_document(doc_id, org_id) -> None
     async for event in run(request): ...            # Event stream, forward as SSE
     await summarize_history(messages) -> str
+    export_pdf(markdown, title) -> bytes            # sync, CPU-bound: call via asyncio.to_thread
 
 Event stream for run() (forward each one as an SSE `data:` line):
     status "Planning…" -> status "Plan: meeting → email"
@@ -12,11 +13,16 @@ Event stream for run() (forward each one as an SSE `data:` line):
               (status / sources / token / result, or error)
     [token events of a short wrap-up when the plan has more than one step]
     done {answer, agents, errors}
-"result" events carry structured output (email, meeting summary, report…) for UI cards.
+"result" events carry structured output (email, meeting summary, report…) for UI cards;
+report and meeting results also carry "markdown", ready for export_pdf().
 The stream never raises; failures become "error" events and "done" is always last.
 
-Chat history: the backend owns it. When history exceeds 12 messages, call
-summarize_history() on the older ones and send history_summary + the last 6 messages.
+Rolling chat summary (the backend owns history; this module is stateless):
+    if len(history) > HISTORY_SUMMARY_TRIGGER (12):
+        summary = await summarize_history(history[:-HISTORY_KEEP_RECENT])   # older turns
+        send AgentRequest(history_summary=summary, history=history[-HISTORY_KEEP_RECENT:])
+    HISTORY_KEEP_RECENT is 6. Store the summary and refresh it the same way as the chat grows
+    (pass the previous summary as the first message so nothing is lost).
 """
 
 import logging
@@ -27,6 +33,7 @@ from langchain_core.messages import HumanMessage, SystemMessage
 from pydantic import BaseModel, Field
 
 from eap_ai import llm
+from eap_ai.export.pdf import markdown_to_pdf
 from eap_ai.ingestion.pipeline import ingest
 from eap_ai.orchestrator.graph import build_graph
 from eap_ai.schemas import AgentRequest, ChatMessage, DocMeta, Event, IngestResult
@@ -35,6 +42,8 @@ from eap_ai.vectorstore import qdrant
 log = logging.getLogger(__name__)
 
 SUMMARY_MAX_WORDS = 150
+HISTORY_SUMMARY_TRIGGER = 12  # backend summarizes when history is longer than this
+HISTORY_KEEP_RECENT = 6  # ...and then sends only the summary + this many recent messages
 
 SUMMARY_SYSTEM = f"""You summarize a conversation between a user and an assistant so it \
 can continue later without the full transcript.
@@ -101,3 +110,13 @@ async def summarize_history(messages: Sequence[ChatMessage]) -> str:
     )
     assert isinstance(result, HistorySummary)
     return _cap_words(result.summary, SUMMARY_MAX_WORDS)
+
+
+def export_pdf(markdown: str, title: str) -> bytes:
+    """Render Markdown (e.g. a report or meeting result's "markdown") to an A4 PDF.
+
+    Unicode-safe (bundled DejaVu fonts), with title header, generated date and page numbers.
+    Raw HTML and images in the Markdown are not rendered. Synchronous and CPU-bound:
+    from async code call `await asyncio.to_thread(export_pdf, markdown, title)`.
+    """
+    return markdown_to_pdf(markdown, title)
