@@ -12,7 +12,7 @@ def test_settings_defaults() -> None:
     assert s.fast_reasoning_effort == "none"
     assert (s.chunk_size, s.chunk_overlap) == (600, 80)
     assert (s.top_k, s.final_k) == (20, 5)
-    assert s.score_threshold == 0.35
+    assert s.score_threshold == 0.62
     assert s.max_context_tokens == 6000
     assert s.qdrant_api_key is None
 

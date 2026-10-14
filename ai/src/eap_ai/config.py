@@ -30,7 +30,9 @@ class Settings(BaseSettings):
     # Retrieval
     top_k: int = 20
     final_k: int = 5
-    score_threshold: float = 0.35
+    # mistral-embed cosine scores are compressed: off-topic ~0.59-0.66, on-topic ~0.65-0.80
+    score_threshold: float = 0.62
+    mmr_lambda: float = 0.7
     max_context_tokens: int = 6000
 
 
