@@ -35,6 +35,10 @@ class Settings(BaseSettings):
     mmr_lambda: float = 0.7
     max_context_tokens: int = 6000
 
+    # Agents: inputs longer than this use map-reduce, split into parts of map_chunk_tokens
+    long_input_tokens: int = 6000
+    map_chunk_tokens: int = 3000
+
 
 @lru_cache
 def get_settings() -> Settings:
