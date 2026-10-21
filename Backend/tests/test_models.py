@@ -166,3 +166,20 @@ async def test_get_db_commits_on_success_and_rolls_back_on_error(
     with pytest.raises(ValueError):
         await gen.athrow(ValueError("handler failed"))
     assert session.events == ["rollback", "close"]
+
+
+def test_migration_history_is_a_single_chain() -> None:
+    """Two people adding migrations in parallel creates two heads; `alembic merge` is needed.
+    Applied migrations must never be edited: add a new one (Part F)."""
+    from pathlib import Path
+
+    from alembic.config import Config
+    from alembic.script import ScriptDirectory
+
+    backend = Path(__file__).resolve().parents[1]
+    cfg = Config(str(backend / "alembic.ini"))
+    cfg.set_main_option("script_location", str(backend / "alembic"))
+    script = ScriptDirectory.from_config(cfg)
+    assert len(script.get_heads()) == 1, f"multiple heads: {script.get_heads()}"
+    revisions = list(script.walk_revisions())
+    assert revisions[-1].down_revision is None  # one root

@@ -189,15 +189,31 @@ async def list_documents(
     return rows, next_cursor_for(rows, limit)
 
 
-async def ensure_visible(db: AsyncSession, user: User, doc_ids: Sequence[uuid.UUID]) -> None:
-    """All ids must be documents this user may see (else one generic 404, no hints)."""
+async def ensure_visible(
+    db: AsyncSession, user: User, doc_ids: Sequence[uuid.UUID], *, require_ready: bool = False
+) -> None:
+    """All ids must be documents this user may see (else one generic 404, no hints).
+
+    require_ready: also refuse documents still processing or failed (409) — the AI would
+    otherwise silently answer "not found" for them.
+    """
     if not doc_ids:
         return
-    found = set(
-        await db.scalars(select(Document.id).where(Document.id.in_(doc_ids), visible_to(user)))
-    )
-    if found != set(doc_ids):
+    rows = (
+        await db.execute(
+            select(Document.id, Document.filename, Document.status).where(
+                Document.id.in_(doc_ids), visible_to(user)
+            )
+        )
+    ).all()
+    if {r.id for r in rows} != set(doc_ids):
         raise AppError("document_not_found", "One or more documents were not found", 404)
+    if require_ready and (
+        pending := [r.filename for r in rows if r.status is not DocumentStatus.ready]
+    ):
+        raise AppError(
+            "document_not_ready", f"Not ready yet (processing or failed): {', '.join(pending)}", 409
+        )
 
 
 async def get_visible(db: AsyncSession, user: User, doc_id: uuid.UUID) -> Document:

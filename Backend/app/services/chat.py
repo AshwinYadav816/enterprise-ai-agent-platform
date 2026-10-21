@@ -21,11 +21,20 @@ from app.core.config import get_settings
 from app.core.db import SessionFactory
 from app.core.errors import AppError
 from app.core.pagination import next_cursor_for, paginate
-from app.models import Conversation, Message, MessageRole, MessageStatus, User
+from app.models import (
+    Conversation,
+    GenerationKind,
+    Message,
+    MessageRole,
+    MessageStatus,
+    User,
+)
 from app.schemas.chat import SendMessageRequest
 from app.services import audit
 from app.services.ai_gateway import AgentRequest, AIGateway, ChatMessage, user_ctx
 from app.services.documents import ensure_visible
+from app.services.markdown import render
+from app.services.tools import slugify
 
 log = logging.getLogger(__name__)
 
@@ -162,7 +171,7 @@ async def prepare_turn(
 ) -> tuple[Conversation, AgentRequest]:
     conv = await get_owned(db, user, conversation_id)
     doc_ids = list(dict.fromkeys(data.doc_ids or []))
-    await ensure_visible(db, user, doc_ids)
+    await ensure_visible(db, user, doc_ids, require_ready=True)
 
     context = await _context_messages(db, conv.id)
     await _update_summary(db, ai, conv, context)
@@ -187,6 +196,7 @@ async def prepare_turn(
         history_summary=conv.summary,
         force_agent=data.force_agent,
         doc_ids=[str(d) for d in doc_ids] or None,
+        transcript=(data.transcript or "").strip() or None,
     )
     return conv, request
 
@@ -305,3 +315,43 @@ async def relay(turn: ChatTurn) -> AsyncIterator[str]:
             yield item
     finally:
         turn.cancel()  # no await: safe even inside a cancelled scope; the turn saves itself
+
+
+# --- PDF of a result produced in chat --------------------------------------------------
+
+_AGENT_KIND = {
+    "meeting": GenerationKind.meeting,
+    "report": GenerationKind.report,
+    "email": GenerationKind.email,
+    "document": GenerationKind.document_insights,
+}
+
+
+async def result_pdf(
+    db: AsyncSession,
+    ai: AIGateway,
+    user: User,
+    conversation_id: uuid.UUID,
+    message_id: uuid.UUID,
+    index: int,
+) -> tuple[bytes, str]:
+    """Export one `result` of an assistant reply (e.g. the meeting summary or email of a
+    "summarize this meeting and email the team" turn) as a PDF."""
+    conv = await get_owned(db, user, conversation_id)
+    message = await db.scalar(
+        select(Message).where(Message.id == message_id, Message.conversation_id == conv.id)
+    )
+    results = (message.results or []) if message is not None else []
+    if not 0 <= index < len(results):
+        raise AppError("not_found", "Result not found", 404)
+    result = results[index]
+    agent = str(result.get("agent", ""))
+    output = result.get("output") or {}
+    kind = _AGENT_KIND.get(agent)
+    title = (conv.title or "Assistant answer")[:200]
+    if kind is GenerationKind.email and output.get("subject"):
+        title = str(output["subject"])[:200]
+    markdown = result.get("markdown") or (
+        render(kind, output, title) if kind else f"# {title}\n\n{output.get('answer', '')}\n"
+    )
+    return await ai.export_pdf(markdown, title), f"{slugify(title)}-{agent or 'answer'}.pdf"

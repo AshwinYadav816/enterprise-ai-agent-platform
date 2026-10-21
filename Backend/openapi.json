@@ -37,7 +37,7 @@
           "health"
         ],
         "summary": "Ready",
-        "description": "Readiness: Postgres answers `SELECT 1` and Redis answers `PING` (2 s each).",
+        "description": "Readiness: Postgres `SELECT 1`, Redis `PING` (2 s each); with AI_MODE=real also the AI\nmodule's config and its Qdrant.",
         "operationId": "ready_api_v1_ready_get",
         "responses": {
           "200": {
@@ -1266,6 +1266,72 @@
             "description": "SSE stream",
             "content": {
               "text/event-stream": {}
+            }
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/v1/conversations/{conversation_id}/messages/{message_id}/results/{index}/pdf": {
+      "get": {
+        "tags": [
+          "conversations"
+        ],
+        "summary": "Result Pdf",
+        "description": "Download one result of an assistant reply (`message.results[index]`) as a PDF.",
+        "operationId": "result_pdf_api_v1_conversations__conversation_id__messages__message_id__results__index__pdf_get",
+        "security": [
+          {
+            "HTTPBearer": []
+          }
+        ],
+        "parameters": [
+          {
+            "name": "conversation_id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "format": "uuid",
+              "title": "Conversation Id"
+            }
+          },
+          {
+            "name": "message_id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "format": "uuid",
+              "title": "Message Id"
+            }
+          },
+          {
+            "name": "index",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "integer",
+              "maximum": 10,
+              "minimum": 0,
+              "title": "Index"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/pdf": {}
             }
           },
           "422": {
@@ -2739,6 +2805,19 @@
               }
             ],
             "description": "Skip the router (research|email|meeting|report|document|chat)"
+          },
+          "transcript": {
+            "anyOf": [
+              {
+                "type": "string",
+                "maxLength": 200000
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Transcript",
+            "description": "Meeting transcript for this turn, e.g. 'summarize this meeting and email the action items to the team' (not stored in the history; the summary result is)"
           }
         },
         "type": "object",

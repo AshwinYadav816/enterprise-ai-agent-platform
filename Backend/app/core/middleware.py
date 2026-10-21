@@ -1,6 +1,7 @@
 """Security headers and a request-body size limit (pure ASGI: safe for SSE streaming)."""
 
 import json
+import re
 
 from fastapi import HTTPException
 from starlette.types import ASGIApp, Message, Receive, Scope, Send
@@ -14,8 +15,8 @@ SECURITY_HEADERS = [
     (b"referrer-policy", b"strict-origin-when-cross-origin"),
 ]
 
-# Routes that legitimately carry files; everything else is small JSON.
-UPLOAD_PATHS = ("/api/v1/documents", "/api/v1/tools/meetings")
+# Routes that legitimately carry files or long transcripts; everything else is small JSON.
+UPLOAD_PATHS = re.compile(r"^/api/v1/(documents|tools/meetings|conversations/[^/]+/messages)/?$")
 
 
 class SecurityHeadersMiddleware:
@@ -56,7 +57,7 @@ class BodySizeLimitMiddleware:
     @staticmethod
     def limit_for(path: str) -> int:
         s = get_settings()
-        if path.rstrip("/") in UPLOAD_PATHS:
+        if UPLOAD_PATHS.match(path):
             return (s.max_upload_mb + 1) * 2**20  # +1 MB for multipart overhead
         return s.max_json_body_kb * 1024
 

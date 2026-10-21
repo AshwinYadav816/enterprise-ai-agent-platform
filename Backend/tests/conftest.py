@@ -7,6 +7,8 @@ from pathlib import Path
 import httpx
 import pytest
 from alembic.config import Config
+from eap_ai.config import Settings as AISettings
+from eap_ai.config import get_settings as get_ai_settings
 from fastapi import FastAPI
 from sqlalchemy import text
 from sqlalchemy.ext.asyncio import AsyncEngine, AsyncSession, create_async_engine
@@ -33,9 +35,16 @@ def _test_env(monkeypatch: pytest.MonkeyPatch) -> Iterator[None]:
     monkeypatch.setenv("JWT_SECRET", "test-secret-not-for-production-use-0123456789")
     monkeypatch.setenv("AI_MODE", "fake")
     monkeypatch.setenv("CORS_ORIGINS", f'["{TEST_ORIGIN}"]')
+    # Safety net: even if a test reached the real AI module, it could not spend Mistral quota
+    # (fake key) or touch real vectors (in-memory Qdrant), and never reads the developer's .env.
+    monkeypatch.setitem(AISettings.model_config, "env_file", None)
+    monkeypatch.setenv("MISTRAL_API_KEY", "tests-never-call-mistral")
+    monkeypatch.setenv("QDRANT_URL", ":memory:")
     get_settings.cache_clear()
+    get_ai_settings.cache_clear()
     yield
     get_settings.cache_clear()
+    get_ai_settings.cache_clear()
 
 
 # --- database -----------------------------------------------------------------------------

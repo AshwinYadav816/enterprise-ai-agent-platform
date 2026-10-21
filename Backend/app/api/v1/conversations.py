@@ -1,6 +1,8 @@
 import uuid
+from typing import Annotated
+from urllib.parse import quote
 
-from fastapi import APIRouter, status
+from fastapi import APIRouter, Path, Response, status
 from fastapi.responses import StreamingResponse
 
 from app.core.db import DbSession, SessionFactoryDep
@@ -91,3 +93,22 @@ async def send_message(
     return StreamingResponse(
         chat_service.relay(turn), media_type="text/event-stream", headers=SSE_HEADERS
     )
+
+
+@router.get(
+    "/{conversation_id}/messages/{message_id}/results/{index}/pdf",
+    response_class=Response,
+    responses={200: {"content": {"application/pdf": {}}}},
+)
+async def result_pdf(
+    conversation_id: uuid.UUID,
+    message_id: uuid.UUID,
+    index: Annotated[int, Path(ge=0, le=10)],
+    user: CurrentUser,
+    db: DbSession,
+    ai: AI,
+) -> Response:
+    """Download one result of an assistant reply (`message.results[index]`) as a PDF."""
+    pdf, filename = await chat_service.result_pdf(db, ai, user, conversation_id, message_id, index)
+    disposition = f"attachment; filename=\"{filename}\"; filename*=UTF-8''{quote(filename)}"
+    return Response(pdf, media_type="application/pdf", headers={"Content-Disposition": disposition})

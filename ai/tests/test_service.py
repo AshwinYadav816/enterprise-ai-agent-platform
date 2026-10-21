@@ -191,3 +191,24 @@ async def test_api_maps_ingest_errors_to_http_codes(
     pdf = {"file": ("p.pdf", _pdf("x"), "application/pdf")}
     r = await client.post("/ingest", files=pdf, data={"allowed_roles": "hr"}, headers=HEADERS)
     assert r.status_code == 413
+
+
+async def test_health_reports_qdrant_and_config(
+    chat: FakeChatModel, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    assert await service.health() == {"config": "ok", "qdrant": "ok"}  # in-memory Qdrant
+
+    class DownClient:
+        async def get_collections(self) -> None:
+            raise ConnectionError("qdrant down")
+
+    monkeypatch.setattr(qdrant, "get_client", lambda: DownClient())
+    assert await service.health() == {"config": "ok", "qdrant": "unavailable"}
+
+
+async def test_health_reports_invalid_config(monkeypatch: pytest.MonkeyPatch) -> None:
+    from eap_ai.config import get_settings
+
+    monkeypatch.delenv("MISTRAL_API_KEY")
+    get_settings.cache_clear()
+    assert await service.health() == {"config": "invalid", "qdrant": "unknown"}

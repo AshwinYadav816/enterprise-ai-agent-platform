@@ -156,7 +156,7 @@ async def report(
     db: AsyncSession, ai: AIGateway, user: User, data: ReportRequest, ip: str | None
 ) -> Generation:
     doc_ids = list(dict.fromkeys(data.doc_ids or []))
-    await ensure_visible(db, user, doc_ids)
+    await ensure_visible(db, user, doc_ids, require_ready=True)
     query = (
         f"Write a {data.report_type} report for the period: {data.period.strip()}.\n\n"
         f"Instructions: {data.instruction.strip()}"

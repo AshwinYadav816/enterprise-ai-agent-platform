@@ -48,3 +48,9 @@ class SendMessageRequest(BaseModel):
     force_agent: AgentName | None = Field(
         default=None, description="Skip the router (research|email|meeting|report|document|chat)"
     )
+    transcript: str | None = Field(
+        default=None,
+        max_length=200_000,
+        description="Meeting transcript for this turn, e.g. 'summarize this meeting and email the "
+        "action items to the team' (not stored in the history; the summary result is)",
+    )

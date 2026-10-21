@@ -7,8 +7,10 @@ from fastapi.responses import JSONResponse
 from sqlalchemy import text
 from sqlalchemy.ext.asyncio import AsyncEngine
 
+from app.core.config import get_settings
 from app.core.db import get_engine
 from app.core.ratelimit import get_redis
+from app.services.ai_gateway import AI
 
 router = APIRouter(tags=["health"])
 log = logging.getLogger(__name__)
@@ -44,8 +46,10 @@ async def health() -> dict[str, str]:
 async def ready(
     engine: Annotated[AsyncEngine, Depends(get_engine_for_health)],
     redis: Annotated[Pingable, Depends(get_redis_for_health)],
+    ai: AI,
 ) -> JSONResponse:
-    """Readiness: Postgres answers `SELECT 1` and Redis answers `PING` (2 s each)."""
+    """Readiness: Postgres `SELECT 1`, Redis `PING` (2 s each); with AI_MODE=real also the AI
+    module's config and its Qdrant."""
     checks: dict[str, str] = {}
 
     async def run(name: str, probe: Any) -> None:
@@ -58,6 +62,10 @@ async def ready(
 
     await run("database", _select_one(engine))
     await run("redis", redis.ping())
+    if get_settings().ai_mode == "real":
+        ai_checks = await ai.health()  # never raises
+        checks["ai_config"] = ai_checks.get("config", "unknown")
+        checks["qdrant"] = ai_checks.get("qdrant", "unknown")
     ok = all(v == "ok" for v in checks.values())
     return JSONResponse(
         {"status": "ready" if ok else "unavailable", "checks": checks},

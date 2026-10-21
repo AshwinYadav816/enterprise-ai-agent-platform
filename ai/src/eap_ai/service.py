@@ -6,6 +6,7 @@ Contract:
     async for event in run(request): ...            # Event stream, forward as SSE
     await summarize_history(messages) -> str
     export_pdf(markdown, title) -> bytes            # sync, CPU-bound: call via asyncio.to_thread
+    await health() -> {"config": "ok"|..., "qdrant": "ok"|"unavailable"}   # never raises
 
 Event stream for run() (forward each one as an SSE `data:` line):
     status "Planning…" -> status "Plan: meeting → email"
@@ -26,6 +27,7 @@ Rolling chat summary (the backend owns history; this module is stateless):
     (pass the previous summary as the first message so nothing is lost).
 """
 
+import asyncio
 import logging
 from collections.abc import AsyncIterator, Mapping, Sequence
 from pathlib import PurePath
@@ -58,6 +60,7 @@ __all__ = [
     "UnsupportedFileType",
     "delete_document",
     "export_pdf",
+    "health",
     "ingest_document",
     "run",
     "summarize_history",
@@ -182,3 +185,28 @@ def export_pdf(markdown: str, title: str) -> bytes:
     from async code call `await asyncio.to_thread(export_pdf, markdown, title)`.
     """
     return markdown_to_pdf(markdown, title)
+
+
+HEALTH_TIMEOUT_SECONDS = 2.0
+
+
+async def health() -> dict[str, str]:
+    """Readiness of the AI module's dependencies, for the backend's /ready. Never raises.
+
+    config: settings load (e.g. MISTRAL_API_KEY present). qdrant: the vector store answers.
+    Mistral itself isn't called: that would cost quota on every probe.
+    """
+    checks = {"config": "ok", "qdrant": "ok"}
+    try:
+        get_settings()
+    except Exception as exc:
+        log.warning("AI config invalid: %s", exc)
+        checks["config"] = "invalid"
+        checks["qdrant"] = "unknown"
+        return checks
+    try:
+        await asyncio.wait_for(qdrant.get_client().get_collections(), HEALTH_TIMEOUT_SECONDS)
+    except Exception as exc:
+        log.warning("Qdrant unavailable: %s", exc)
+        checks["qdrant"] = "unavailable"
+    return checks

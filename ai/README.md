@@ -51,6 +51,7 @@ from eap_ai.schemas import AgentRequest, ChatMessage, DocMeta, UserCtx
 | `async for event in service.run(req: AgentRequest)` | route and answer; stream of `Event`, never raises, always ends with `done` |
 | `await service.summarize_history(messages) -> str` | rolling summary of older chat turns (≤150 words) |
 | `service.export_pdf(markdown, title) -> bytes` | A4 PDF (Unicode, header, page numbers). **Sync**: call with `await asyncio.to_thread(...)` |
+| `await service.health() -> dict[str, str]` | `{"config": "ok" or "invalid", "qdrant": "ok" or "unavailable"}` for the backend's readiness probe; never raises, never calls Mistral |
 
 ### Inputs
 ```python

@@ -40,18 +40,22 @@ Only one Qdrant may run on port 6333: if the AI module's own stack is up, stop i
 
 ```bash
 docker compose up -d       # tests use the real Postgres test DB (eap_test)
-uv run pytest -q           # 117 tests, offline: fake AI, fake Redis, temp storage
+uv run pytest -q           # 125 tests, offline: fake AI, fake Redis, temp storage
 uv run ruff check && uv run ruff format --check .
 ```
 
 The test DB is wiped and migrated once per run; every test runs in a rolled-back transaction.
+`tests/test_ai_integration.py` runs the **real** AI module (orchestrator, agents, ingestion,
+retrieval, PDF engine, in-memory Qdrant) with only its LLM and embedder faked: it fails if the
+backend ↔ AI contract drifts, at zero API cost.
 Tests refuse to run against a database whose name doesn't end in `_test`.
 
 ## API overview
 
 - Interactive docs: **http://127.0.0.1:8000/docs**. Contract file for the frontend:
   `openapi.json` (regenerate with `uv run python scripts/export_openapi.py`).
-- Everything is under `/api/v1`. Liveness: `GET /health`. Readiness (DB + Redis): `GET /ready` (503 if not).
+- Everything is under `/api/v1`. Liveness: `GET /health`. Readiness: `GET /ready` checks Postgres
+  and Redis, plus (with `AI_MODE=real`) the AI module's config and Qdrant; 503 if any is down.
 - **Auth**: `POST /auth/login` returns `access_token` (15 min; send as `Authorization: Bearer …`;
   keep it in memory) and sets an httpOnly `refresh_token` cookie (path `/api/v1/auth`, 7 days,
   rotated on every `POST /auth/refresh`; fetch with `credentials: "include"`). A user with
@@ -59,9 +63,15 @@ Tests refuse to run against a database whose name doesn't end in `_test`.
 - **Errors** always look like `{"error": {"code": "not_found", "message": "…"}}`. Other orgs'
   resources are 404, never 403.
 - **Pagination**: `?limit=20&cursor=…` → `{"items": [...], "next_cursor": "…" | null}`.
-- **Chat streaming**: `POST /conversations/{id}/messages` → `text/event-stream` frames
-  `event: status|agent|sources|token|result|error|done` + `data: <json>`, `: ping` every 15 s.
-  `done` carries `message_id`. Use `fetch` streaming (not `EventSource`: it can't POST or send headers).
+- **Chat streaming**: `POST /conversations/{id}/messages` `{content, doc_ids?, force_agent?, transcript?}`
+  → `text/event-stream` frames `event: status|agent|sources|token|result|error|done` + `data: <json>`,
+  `: ping` every 15 s. Use `fetch` streaming (not `EventSource`: it can't POST or send headers).
+  - Only **research** and **chat** stream `token`s. Meeting/email/report/document steps send
+    `status` progress, then a `result` card; the final text is `done.answer`.
+  - `transcript` (≤ 200k chars) enables e.g. "summarize this meeting and email the action items"
+    (router runs meeting → email). `doc_ids` must be visible **and ready** (else 404 / 409).
+  - `done` carries `message_id`; each `result` of that reply can be downloaded:
+    `GET /conversations/{id}/messages/{message_id}/results/{index}/pdf`.
 - Areas: `auth`, `users/me`, `admin/users`, `admin/activity`, `admin/stats`, `documents`,
   `conversations`, `tools/{meetings,reports,emails,documents/{id}/insights}`, `tools/generations`.
 
@@ -105,7 +115,9 @@ docker build -f Backend/Dockerfile -t eap-backend .        # run in the repo roo
 - `python:3.12-slim`, dependencies locked with uv, non-root user `app` (uid 10001),
   tiktoken tokenizer pre-downloaded. Only files whitelisted in `Backend/Dockerfile.dockerignore`
   are sent to the build, so `.env` and uploads never end up in the image.
-- The entrypoint runs `alembic upgrade head`, then `uvicorn … --proxy-headers`.
+- The entrypoint runs `alembic upgrade head`, then `uvicorn … --proxy-headers`. With
+  `AI_MODE=real` the AI module (~5 s import) is loaded in the background at startup, so the
+  first request after a restart isn't slow.
 - Uploads live in `/app/data/uploads`: mount a volume (or use S3).
 
 Whole stack (datastores + API container) from `Backend/`:

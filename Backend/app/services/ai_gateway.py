@@ -56,6 +56,7 @@ class AIGateway(Protocol):
     def run(self, req: AgentRequest) -> AsyncIterator[Event]: ...
     async def summarize_history(self, messages: Sequence[ChatMessage]) -> str: ...
     async def export_pdf(self, markdown: str, title: str) -> bytes: ...
+    async def health(self) -> dict[str, str]: ...
 
 
 def user_ctx(user: User) -> UserCtx:
@@ -97,6 +98,23 @@ class RealAIGateway:
         from eap_ai import service
 
         return await asyncio.to_thread(service.export_pdf, markdown, title)  # CPU-bound
+
+    async def health(self) -> dict[str, str]:
+        from eap_ai import service
+
+        return await service.health()
+
+
+async def warm_up_ai() -> None:
+    """Import eap_ai.service (~5 s: LangGraph, LangChain, Qdrant client) off the event loop at
+    startup, so the first chat/upload after a restart doesn't pay for it."""
+    import importlib
+
+    try:
+        await asyncio.to_thread(importlib.import_module, "eap_ai.service")
+        log.info("AI module loaded")
+    except Exception:
+        log.exception("AI module failed to load; requests will retry the import")
 
 
 # --- fake (local UI work and tests) --------------------------------------------------------------
@@ -183,12 +201,15 @@ class FakeAIGateway:
             type="agent",
             data={"name": agent.value, "step": 1, "total": 1, "instruction": req.query},
         )
-        if agent is AgentName.research:
-            yield Event(type="sources", data={"sources": []})
         output, extra = _fake_output(agent, req.query)
         answer = output.get("answer") or output.get("summary") or output.get("body") or ""
-        for word in answer.split(" "):
-            yield Event(type="token", data={"text": word + " "})
+        if agent in (AgentName.research, AgentName.chat):  # only these stream text
+            if agent is AgentName.research:
+                yield Event(type="sources", data={"sources": []})
+            for word in answer.split(" "):
+                yield Event(type="token", data={"text": word + " "})
+        else:  # meeting/email/report/document: progress statuses, then the result card
+            yield Event(type="status", data={"message": f"Working on the {agent.value}…"})
         yield Event(type="result", data={"agent": agent.value, "output": output, **extra})
         yield Event(
             type="done",
@@ -200,6 +221,9 @@ class FakeAIGateway:
 
     async def export_pdf(self, markdown: str, title: str) -> bytes:
         return MINIMAL_PDF
+
+    async def health(self) -> dict[str, str]:
+        return {"config": "ok", "qdrant": "ok"}
 
 
 @lru_cache

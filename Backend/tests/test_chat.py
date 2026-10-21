@@ -15,6 +15,7 @@ from app.core.config import get_settings
 from app.models import (
     Conversation,
     Document,
+    DocumentStatus,
     Message,
     MessageRole,
     MessageStatus,
@@ -123,6 +124,7 @@ async def test_force_agent_and_doc_ids_reach_the_ai(
         size_bytes=1,
         storage_key="k/t.pdf",
         allowed_roles=["employee"],
+        status=DocumentStatus.ready,
     )
     db.add(doc)
     await db.flush()
@@ -344,3 +346,49 @@ async def test_message_pagination_oldest_first(client: httpx.AsyncClient, db: As
     ).json()
     assert [m["content"] for m in page1["items"] + page2["items"]] == [f"m{i}" for i in range(5)]
     assert page2["next_cursor"] is None
+
+
+async def test_documents_still_processing_are_409(
+    client: httpx.AsyncClient, db: AsyncSession
+) -> None:
+    user, h, conv_id = await setup_chat(client, db)
+    doc = Document(
+        org_id=user.org_id,
+        owner_id=user.id,
+        filename="draft.pdf",
+        content_type="application/pdf",
+        size_bytes=1,
+        storage_key="k/d.pdf",
+        allowed_roles=["employee"],
+    )  # status defaults to processing
+    db.add(doc)
+    await db.flush()
+    r = await send(client, h, conv_id, doc_ids=[str(doc.id)])
+    assert r.status_code == 409 and r.json()["error"]["code"] == "document_not_ready"
+    assert "draft.pdf" in r.json()["error"]["message"]
+
+
+async def test_transcript_reaches_the_ai_and_chain_results_export_as_pdf(
+    client: httpx.AsyncClient, db: AsyncSession, fake_ai: FakeAIGateway
+) -> None:
+    _, h, conv_id = await setup_chat(client, db)
+    transcript = "Asha: ship Friday.\nRavi: Asha updates the notes."
+    r = await send(
+        client,
+        h,
+        conv_id,
+        content="Summarize this meeting",
+        transcript=transcript,
+        force_agent="meeting",
+    )
+    frames, _ = parse_sse(r.text)
+    assert fake_ai.requests[-1].transcript == transcript
+    message_id = frames[-1][1]["message_id"]
+
+    url = f"{API}/conversations/{conv_id}/messages/{message_id}/results"
+    pdf = await client.get(f"{url}/0/pdf", headers=h)
+    assert pdf.status_code == 200 and pdf.content.startswith(b"%PDF")
+    assert pdf.headers["content-disposition"].startswith('attachment; filename="summarize-this')
+    assert (await client.get(f"{url}/1/pdf", headers=h)).status_code == 404  # no such result
+    _, other, _ = await setup_chat(client, db)
+    assert (await client.get(f"{url}/0/pdf", headers=other)).status_code == 404  # not yours
