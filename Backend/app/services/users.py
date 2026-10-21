@@ -8,7 +8,7 @@ from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.core.errors import AppError
 from app.core.pagination import next_cursor_for, paginate
-from app.core.security import hash_password
+from app.core.security import hash_password_async
 from app.models import AuditLog, User, UserRole
 from app.schemas.admin import CreateUserRequest, UpdateUserRequest
 from app.services import audit
@@ -63,7 +63,7 @@ async def create_user(
         email=data.email,
         full_name=data.full_name.strip(),
         role=data.role,
-        password_hash=hash_password(temp),
+        password_hash=await hash_password_async(temp),
         must_change_password=True,
     )
     db.add(user)

@@ -7,6 +7,7 @@ from app.api.v1.router import api_router
 from app.core.config import Settings, get_settings
 from app.core.errors import register_error_handlers
 from app.core.logging import REQUEST_ID_HEADER, RequestIDMiddleware, setup_logging
+from app.core.middleware import BodySizeLimitMiddleware, SecurityHeadersMiddleware
 
 
 def create_app(settings: Settings | None = None) -> FastAPI:
@@ -28,7 +29,9 @@ def create_app(settings: Settings | None = None) -> FastAPI:
         allow_headers=["*"],
         expose_headers=[REQUEST_ID_HEADER, "content-disposition"],
     )
-    app.add_middleware(RequestIDMiddleware)  # added last = outermost: wraps CORS responses too
+    app.add_middleware(BodySizeLimitMiddleware)
+    app.add_middleware(SecurityHeadersMiddleware)
+    app.add_middleware(RequestIDMiddleware)  # added last = outermost: wraps everything above
     register_error_handlers(app)
     app.include_router(api_router)
     return app

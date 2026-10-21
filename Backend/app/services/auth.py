@@ -11,10 +11,10 @@ from app.core.config import get_settings
 from app.core.errors import AppError
 from app.core.security import (
     create_access_token,
-    hash_password,
+    hash_password_async,
     hash_refresh_token,
     new_refresh_token,
-    verify_password,
+    verify_password_async,
 )
 from app.models import Organization, RefreshToken, User, UserRole
 from app.schemas.auth import LoginRequest, RegisterRequest
@@ -75,7 +75,7 @@ async def register(db: AsyncSession, data: RegisterRequest, ip: str | None = Non
         org_id=org.id,
         email=data.email,
         full_name=data.full_name.strip(),
-        password_hash=hash_password(data.password),
+        password_hash=await hash_password_async(data.password),
         role=UserRole.admin,
         last_login_at=_now(),
     )
@@ -95,7 +95,9 @@ async def register(db: AsyncSession, data: RegisterRequest, ip: str | None = Non
 
 async def login(db: AsyncSession, data: LoginRequest, ip: str | None = None) -> Session:
     user = await db.scalar(select(User).where(User.email == data.email))
-    valid, new_hash = verify_password(data.password, user.password_hash if user else None)
+    valid, new_hash = await verify_password_async(
+        data.password, user.password_hash if user else None
+    )
     if user is None:
         # No org to attach an audit row to (org_id is required): app log only.
         log.info("Login failed for unknown email from %s", ip)
@@ -183,12 +185,12 @@ async def change_password(
 ) -> Session:
     """Revokes every session (the refresh cookie isn't sent to this path, so the current one
     can't be singled out) and returns a fresh session for the caller."""
-    valid, _ = verify_password(current, user.password_hash)
+    valid, _ = await verify_password_async(current, user.password_hash)
     if not valid:
         raise AppError("invalid_password", "Current password is incorrect", 400)
-    if verify_password(new, user.password_hash)[0]:
+    if (await verify_password_async(new, user.password_hash))[0]:
         raise AppError("password_reused", "New password must differ from the current one", 400)
-    user.password_hash = hash_password(new)
+    user.password_hash = await hash_password_async(new)
     user.must_change_password = False
     await revoke_all(db, user.id)
     await audit.log(db, org_id=user.org_id, user_id=user.id, action=audit.PASSWORD_CHANGED, ip=ip)

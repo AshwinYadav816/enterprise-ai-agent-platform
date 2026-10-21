@@ -1,5 +1,7 @@
 # Local stack: Postgres (eap + eap_test), Redis, and Qdrant (reused from ../ai).
-#   docker compose up -d        (run from Backend/)
+#   docker compose up -d                        datastores only (develop with uv run)
+#   docker compose --profile full up -d --build datastores + the API container
+# Settings come from Backend/.env (both for ${...} below and for the api container).
 name: eap
 
 include:
@@ -37,6 +39,39 @@ services:
       timeout: 3s
       retries: 10
 
+  api:
+    profiles: ["full"]
+    build:
+      context: .. # repo root: the image installs ../ai too
+      dockerfile: Backend/Dockerfile
+    env_file:
+      - path: .env
+        required: false
+    environment:
+      # Service names instead of 127.0.0.1 inside the compose network
+      DATABASE_URL: postgresql+asyncpg://${POSTGRES_USER:-eap}:${POSTGRES_PASSWORD:-eap}@postgres:5432/eap
+      REDIS_URL: redis://redis:6379/0
+      QDRANT_URL: ${QDRANT_URL_IN_DOCKER:-http://qdrant:6333}
+      JWT_SECRET: ${JWT_SECRET:?Set JWT_SECRET in Backend/.env}
+      AI_MODE: ${AI_MODE:-fake}
+      MISTRAL_API_KEY: ${MISTRAL_API_KEY:-}
+      FAST_MODEL: ${FAST_MODEL:-ministral-8b-latest}
+      SMART_MODEL: ${SMART_MODEL:-ministral-14b-latest}
+      STORAGE_DIR: /app/data/uploads
+    depends_on:
+      postgres:
+        condition: service_healthy
+      redis:
+        condition: service_healthy
+      qdrant:
+        condition: service_started
+        required: false
+    ports:
+      - "8000:8000"
+    volumes:
+      - uploads:/app/data/uploads
+
 volumes:
   postgres_data:
   redis_data:
+  uploads:

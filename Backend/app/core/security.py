@@ -1,5 +1,6 @@
 """Password hashing, JWT access tokens, refresh-token generation, role hierarchy."""
 
+import asyncio
 import hashlib
 import secrets
 from datetime import UTC, datetime, timedelta
@@ -34,6 +35,20 @@ def verify_password(password: str, password_hash: str | None) -> tuple[bool, str
         _hasher.verify(password, _DUMMY_HASH)
         return False, None
     return _hasher.verify_and_update(password, password_hash)
+
+
+# Argon2 costs ~65 ms of CPU per call (by design). Run it in a worker thread so one login
+# doesn't freeze every other request on the event loop (e.g. live chat streams).
+
+
+async def hash_password_async(password: str) -> str:
+    return await asyncio.to_thread(hash_password, password)
+
+
+async def verify_password_async(
+    password: str, password_hash: str | None
+) -> tuple[bool, str | None]:
+    return await asyncio.to_thread(verify_password, password, password_hash)
 
 
 # --- access tokens (JWT) ------------------------------------------------------------------------

@@ -46,8 +46,9 @@ async def app_error_handler(_: Request, exc: Exception) -> JSONResponse:
 async def http_error_handler(_: Request, exc: Exception) -> JSONResponse:
     assert isinstance(exc, StarletteHTTPException)
     message = exc.detail if isinstance(exc.detail, str) else HTTPStatus(exc.status_code).phrase
+    code = getattr(exc, "code", None) or _code_for(exc.status_code)  # explicit code wins
     return JSONResponse(
-        error_body(_code_for(exc.status_code), message),
+        error_body(code, message),
         status_code=exc.status_code,
         headers=getattr(exc, "headers", None),
     )

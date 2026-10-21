@@ -35,6 +35,7 @@ class Settings(BaseSettings):
     s3_bucket: str | None = None
     s3_region: str | None = None
     max_upload_mb: int = 25
+    max_json_body_kb: int = 1024  # all non-upload request bodies
     allowed_extensions: list[str] = ["pdf", "docx", "pptx", "xlsx"]
 
     # AI module: "fake" needs no Mistral key (local UI work, tests); "real" calls eap_ai

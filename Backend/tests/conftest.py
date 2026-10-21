@@ -12,6 +12,7 @@ from sqlalchemy import text
 from sqlalchemy.ext.asyncio import AsyncEngine, AsyncSession, create_async_engine
 
 from alembic import command
+from app.api.v1.health import get_engine_for_health, get_redis_for_health
 from app.core.config import Settings, get_settings
 from app.core.db import get_db, get_session_factory
 from app.core.ratelimit import RateLimiter, get_rate_limiter
@@ -106,6 +107,9 @@ class FakeRedis:
         self.ttls[name] = time
         return True
 
+    async def ping(self) -> bool:
+        return True
+
     async def get(self, name: str) -> str | None:
         return self.values.get(name)
 
@@ -148,6 +152,7 @@ def app(
     application = create_app()
     application.dependency_overrides[get_ai] = lambda: fake_ai
     application.dependency_overrides[get_stats_cache] = lambda: fake_redis
+    application.dependency_overrides[get_redis_for_health] = lambda: fake_redis
     application.dependency_overrides[get_storage] = lambda: storage
     # Frozen clock: fixed windows must not roll over mid-test (that made counts reset).
     application.dependency_overrides[get_rate_limiter] = lambda: RateLimiter(
@@ -165,6 +170,8 @@ def app(
 
         application.dependency_overrides[get_db] = _test_db
         application.dependency_overrides[get_session_factory] = lambda: _test_session
+        engine = request.getfixturevalue("db_engine")
+        application.dependency_overrides[get_engine_for_health] = lambda: engine
     return application
 
 

@@ -11,7 +11,7 @@
           "health"
         ],
         "summary": "Health",
-        "description": "Liveness: the process is up. (Readiness with DB/Redis checks comes in Phase 8.)",
+        "description": "Liveness: the process is up (no dependencies checked).",
         "operationId": "health_api_v1_health_get",
         "responses": {
           "200": {
@@ -27,6 +27,29 @@
                 }
               }
             }
+          }
+        }
+      }
+    },
+    "/api/v1/ready": {
+      "get": {
+        "tags": [
+          "health"
+        ],
+        "summary": "Ready",
+        "description": "Readiness: Postgres answers `SELECT 1` and Redis answers `PING` (2 s each).",
+        "operationId": "ready_api_v1_ready_get",
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {}
+              }
+            }
+          },
+          "503": {
+            "description": "A dependency is unavailable"
           }
         }
       }

@@ -1,0 +1,14 @@
+# Used by `docker build -f Backend/Dockerfile .` (context = repo root). Whitelist only.
+*
+!Backend/pyproject.toml
+!Backend/uv.lock
+!Backend/app/
+!Backend/alembic/
+!Backend/alembic.ini
+!Backend/scripts/
+!Backend/docker/entrypoint.sh
+!ai/pyproject.toml
+!ai/uv.lock
+!ai/src/
+**/__pycache__
+**/*.pyc
