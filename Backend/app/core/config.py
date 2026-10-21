@@ -41,8 +41,9 @@ class Settings(BaseSettings):
     ai_mode: Literal["fake", "real"] = "fake"
 
     # Rate limits (requests per minute)
-    login_per_min: int = 5
-    ai_per_min: int = 30
+    login_per_min: int = 5  # per IP + email
+    ai_per_min: int = 30  # per user
+    ai_org_per_min: int = 60  # per organization (Mistral limits are account-wide)
 
 
 @lru_cache

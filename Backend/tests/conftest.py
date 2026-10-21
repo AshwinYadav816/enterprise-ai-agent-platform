@@ -13,6 +13,7 @@ from sqlalchemy.ext.asyncio import AsyncEngine, AsyncSession, create_async_engin
 from alembic import command
 from app.core.config import Settings, get_settings
 from app.core.db import get_db
+from app.core.ratelimit import RateLimiter, get_rate_limiter
 from app.main import create_app
 
 TEST_ORIGIN = "http://localhost:5173"
@@ -82,12 +83,40 @@ async def db(db_engine: AsyncEngine) -> AsyncIterator[AsyncSession]:
             await outer.rollback()
 
 
+# --- redis -------------------------------------------------------------------------------------
+
+
+class FakeRedis:
+    """In-memory stand-in for the two Redis commands the rate limiter uses."""
+
+    def __init__(self) -> None:
+        self.counts: dict[str, int] = {}
+        self.ttls: dict[str, int] = {}
+
+    async def incr(self, name: str) -> int:
+        self.counts[name] = self.counts.get(name, 0) + 1
+        return self.counts[name]
+
+    async def expire(self, name: str, time: int) -> bool:
+        self.ttls[name] = time
+        return True
+
+
+@pytest.fixture
+def fake_redis() -> FakeRedis:
+    return FakeRedis()
+
+
 # --- app / client -------------------------------------------------------------------------------
 
 
 @pytest.fixture
-def app(request: pytest.FixtureRequest) -> FastAPI:
+def app(request: pytest.FixtureRequest, fake_redis: FakeRedis) -> FastAPI:
     application = create_app()
+    # Frozen clock: fixed windows must not roll over mid-test (that made counts reset).
+    application.dependency_overrides[get_rate_limiter] = lambda: RateLimiter(
+        fake_redis, clock=lambda: 1_000_000.0
+    )
     if "db" in request.fixturenames:  # only DB tests need Postgres
         session: AsyncSession = request.getfixturevalue("db")
 

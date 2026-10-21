@@ -4,6 +4,7 @@ import uuid
 
 from sqlalchemy.ext.asyncio import AsyncSession
 
+from app.core.security import hash_password
 from app.models import Organization, User, UserRole
 
 
@@ -21,17 +22,21 @@ async def make_user(
     role: UserRole = UserRole.employee,
     email: str | None = None,
     full_name: str = "Test User",
+    password: str | None = None,
     password_hash: str = "not-a-real-hash",
     is_active: bool = True,
+    must_change_password: bool = False,
 ) -> User:
+    """Pass `password` to get a real Argon2 hash (needed for login tests)."""
     org = org or await make_org(db)
     user = User(
         org_id=org.id,
         email=email or f"user-{uuid.uuid4().hex[:8]}@example.com",
         full_name=full_name,
-        password_hash=password_hash,
+        password_hash=hash_password(password) if password else password_hash,
         role=role,
         is_active=is_active,
+        must_change_password=must_change_password,
     )
     db.add(user)
     await db.flush()

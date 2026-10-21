@@ -15,11 +15,14 @@ log = logging.getLogger(__name__)
 class AppError(Exception):
     """Raise from services/routes; becomes {"error": {code, message}} with the given status."""
 
-    def __init__(self, code: str, message: str, status: int = 400) -> None:
+    def __init__(
+        self, code: str, message: str, status: int = 400, headers: dict[str, str] | None = None
+    ) -> None:
         super().__init__(message)
         self.code = code
         self.message = message
         self.status = status
+        self.headers = headers
 
 
 def error_body(code: str, message: str, **extra: Any) -> dict[str, Any]:
@@ -35,7 +38,9 @@ def _code_for(status: int) -> str:
 
 async def app_error_handler(_: Request, exc: Exception) -> JSONResponse:
     assert isinstance(exc, AppError)
-    return JSONResponse(error_body(exc.code, exc.message), status_code=exc.status)
+    return JSONResponse(
+        error_body(exc.code, exc.message), status_code=exc.status, headers=exc.headers
+    )
 
 
 async def http_error_handler(_: Request, exc: Exception) -> JSONResponse:
