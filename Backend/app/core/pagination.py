@@ -1,4 +1,4 @@
-"""Keyset pagination over (created_at, id), newest first, with an opaque cursor."""
+"""Keyset pagination over (timestamp, id) with an opaque cursor; newest first by default."""
 
 import base64
 import binascii
@@ -44,27 +44,37 @@ CursorParam = Annotated[str | None, Query(description="next_cursor from the prev
 
 def paginate(
     stmt: Select[Any],
-    created_at: InstrumentedAttribute[datetime],
+    sort_col: InstrumentedAttribute[datetime],
     row_id: InstrumentedAttribute[uuid.UUID],
     cursor: str | None,
     limit: int,
+    *,
+    ascending: bool = False,
 ) -> Select[Any]:
-    """Newest-first page; fetches limit + 1 rows so the caller can tell if there is a next page."""
+    """One page ordered by (sort_col, id); fetches limit + 1 rows to detect a next page."""
     if cursor:
         t, i = decode_cursor(cursor)
-        stmt = stmt.where(or_(created_at < t, and_(created_at == t, row_id < i)))
-    return stmt.order_by(created_at.desc(), row_id.desc()).limit(limit + 1)
+        if ascending:
+            stmt = stmt.where(or_(sort_col > t, and_(sort_col == t, row_id > i)))
+        else:
+            stmt = stmt.where(or_(sort_col < t, and_(sort_col == t, row_id < i)))
+    order = (sort_col.asc(), row_id.asc()) if ascending else (sort_col.desc(), row_id.desc())
+    return stmt.order_by(*order).limit(limit + 1)
 
 
 def next_cursor_for(
-    rows: list[Any], limit: int, key: Callable[[Any], Any] = lambda row: row
+    rows: list[Any],
+    limit: int,
+    key: Callable[[Any], Any] = lambda row: row,
+    sort_attr: str = "created_at",
 ) -> str | None:
     """Call with the limit + 1 rows fetched; trims them in place and returns the next cursor.
 
-    `key` picks the entity carrying created_at/id when rows are tuples (e.g. joined columns).
+    `key` picks the entity when rows are tuples (joined columns); `sort_attr` must match the
+    column passed to paginate().
     """
     if len(rows) <= limit:
         return None
     del rows[limit:]
     last = key(rows[-1])
-    return encode_cursor(last.created_at, last.id)
+    return encode_cursor(getattr(last, sort_attr), last.id)

@@ -45,6 +45,9 @@ class Settings(BaseSettings):
     ai_per_min: int = 30  # per user
     ai_org_per_min: int = 60  # per organization (Mistral limits are account-wide)
 
+    # Chat streaming
+    sse_heartbeat_seconds: float = 15  # ": ping" comment while waiting, keeps proxies from closing
+
 
 @lru_cache
 def get_settings() -> Settings:
