@@ -1,6 +1,7 @@
 """Async engine, session factory and the request-scoped DB dependency."""
 
-from collections.abc import AsyncIterator
+from collections.abc import AsyncIterator, Callable
+from contextlib import AbstractAsyncContextManager
 from functools import lru_cache
 from typing import Annotated
 
@@ -40,3 +41,17 @@ async def get_db() -> AsyncIterator[AsyncSession]:
 # response instead of a 200 for data that was never saved. (FastAPI's default for yield
 # dependencies is "request", which runs the commit after the response has gone out.)
 DbSession = Annotated[AsyncSession, Depends(get_db, scope="function")]
+
+
+SessionFactory = Callable[[], AbstractAsyncContextManager[AsyncSession]]
+
+
+def get_session_factory() -> SessionFactory:
+    """For work that outlives the request (background tasks, streaming): open your own session.
+
+    A dependency so tests can hand background work the test's rolled-back session.
+    """
+    return get_sessionmaker()
+
+
+SessionFactoryDep = Annotated[SessionFactory, Depends(get_session_factory)]

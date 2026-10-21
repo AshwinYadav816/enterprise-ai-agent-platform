@@ -1,6 +1,7 @@
 import asyncio
 import os
 from collections.abc import AsyncIterator, Iterator
+from contextlib import asynccontextmanager
 from pathlib import Path
 
 import httpx
@@ -12,9 +13,11 @@ from sqlalchemy.ext.asyncio import AsyncEngine, AsyncSession, create_async_engin
 
 from alembic import command
 from app.core.config import Settings, get_settings
-from app.core.db import get_db
+from app.core.db import get_db, get_session_factory
 from app.core.ratelimit import RateLimiter, get_rate_limiter
 from app.main import create_app
+from app.services.ai_gateway import FakeAIGateway, get_ai
+from app.services.storage import LocalStorage, get_storage
 
 TEST_ORIGIN = "http://localhost:5173"
 BACKEND_DIR = Path(__file__).resolve().parents[1]
@@ -107,12 +110,33 @@ def fake_redis() -> FakeRedis:
     return FakeRedis()
 
 
+# --- AI + storage ---------------------------------------------------------------------------------
+
+
+@pytest.fixture
+def fake_ai() -> FakeAIGateway:
+    """Fresh fake per test (records ingested/deleted/requests). Swap in a subclass via override."""
+    return FakeAIGateway()
+
+
+@pytest.fixture
+def storage(tmp_path: Path) -> LocalStorage:
+    return LocalStorage(tmp_path / "uploads")
+
+
 # --- app / client -------------------------------------------------------------------------------
 
 
 @pytest.fixture
-def app(request: pytest.FixtureRequest, fake_redis: FakeRedis) -> FastAPI:
+def app(
+    request: pytest.FixtureRequest,
+    fake_redis: FakeRedis,
+    fake_ai: FakeAIGateway,
+    storage: LocalStorage,
+) -> FastAPI:
     application = create_app()
+    application.dependency_overrides[get_ai] = lambda: fake_ai
+    application.dependency_overrides[get_storage] = lambda: storage
     # Frozen clock: fixed windows must not roll over mid-test (that made counts reset).
     application.dependency_overrides[get_rate_limiter] = lambda: RateLimiter(
         fake_redis, clock=lambda: 1_000_000.0
@@ -123,7 +147,12 @@ def app(request: pytest.FixtureRequest, fake_redis: FakeRedis) -> FastAPI:
         async def _test_db() -> AsyncIterator[AsyncSession]:
             yield session
 
+        @asynccontextmanager
+        async def _test_session() -> AsyncIterator[AsyncSession]:
+            yield session  # background work shares the test's rolled-back transaction
+
         application.dependency_overrides[get_db] = _test_db
+        application.dependency_overrides[get_session_factory] = lambda: _test_session
     return application
 
 

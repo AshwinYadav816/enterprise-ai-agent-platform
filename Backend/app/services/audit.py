@@ -17,6 +17,8 @@ USER_CREATED = "user.created"
 ROLE_CHANGED = "user.role_changed"
 USER_DEACTIVATED = "user.deactivated"
 USER_REACTIVATED = "user.reactivated"
+DOCUMENT_UPLOADED = "document.uploaded"
+DOCUMENT_DELETED = "document.deleted"
 
 
 async def log(
