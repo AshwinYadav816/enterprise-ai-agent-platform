@@ -17,6 +17,7 @@ from app.core.db import get_db, get_session_factory
 from app.core.ratelimit import RateLimiter, get_rate_limiter
 from app.main import create_app
 from app.services.ai_gateway import FakeAIGateway, get_ai
+from app.services.stats import get_stats_cache
 from app.services.storage import LocalStorage, get_storage
 
 TEST_ORIGIN = "http://localhost:5173"
@@ -95,6 +96,7 @@ class FakeRedis:
     def __init__(self) -> None:
         self.counts: dict[str, int] = {}
         self.ttls: dict[str, int] = {}
+        self.values: dict[str, str] = {}
 
     async def incr(self, name: str) -> int:
         self.counts[name] = self.counts.get(name, 0) + 1
@@ -102,6 +104,15 @@ class FakeRedis:
 
     async def expire(self, name: str, time: int) -> bool:
         self.ttls[name] = time
+        return True
+
+    async def get(self, name: str) -> str | None:
+        return self.values.get(name)
+
+    async def set(self, name: str, value: str, ex: int | None = None) -> bool:
+        self.values[name] = value
+        if ex is not None:
+            self.ttls[name] = ex
         return True
 
 
@@ -136,6 +147,7 @@ def app(
 ) -> FastAPI:
     application = create_app()
     application.dependency_overrides[get_ai] = lambda: fake_ai
+    application.dependency_overrides[get_stats_cache] = lambda: fake_redis
     application.dependency_overrides[get_storage] = lambda: storage
     # Frozen clock: fixed windows must not roll over mid-test (that made counts reset).
     application.dependency_overrides[get_rate_limiter] = lambda: RateLimiter(

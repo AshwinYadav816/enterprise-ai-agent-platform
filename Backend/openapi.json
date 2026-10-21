@@ -599,6 +599,33 @@
         }
       }
     },
+    "/api/v1/admin/stats": {
+      "get": {
+        "tags": [
+          "admin"
+        ],
+        "summary": "Dashboard Stats",
+        "description": "Everything the admin dashboard charts need, for your organization (cached 60 s).",
+        "operationId": "dashboard_stats_api_v1_admin_stats_get",
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/AdminStats"
+                }
+              }
+            }
+          }
+        },
+        "security": [
+          {
+            "HTTPBearer": []
+          }
+        ]
+      }
+    },
     "/api/v1/documents": {
       "post": {
         "tags": [
@@ -1629,6 +1656,44 @@
   },
   "components": {
     "schemas": {
+      "AdminStats": {
+        "properties": {
+          "generated_at": {
+            "type": "string",
+            "format": "date-time",
+            "title": "Generated At"
+          },
+          "users": {
+            "$ref": "#/components/schemas/UserStats"
+          },
+          "documents": {
+            "$ref": "#/components/schemas/DocumentStats"
+          },
+          "conversations": {
+            "$ref": "#/components/schemas/CountStats"
+          },
+          "messages": {
+            "$ref": "#/components/schemas/CountStats"
+          },
+          "generations": {
+            "$ref": "#/components/schemas/GenerationStats"
+          },
+          "tokens": {
+            "$ref": "#/components/schemas/TokenStats"
+          }
+        },
+        "type": "object",
+        "required": [
+          "generated_at",
+          "users",
+          "documents",
+          "conversations",
+          "messages",
+          "generations",
+          "tokens"
+        ],
+        "title": "AdminStats"
+      },
       "AgentName": {
         "type": "string",
         "enum": [
@@ -1640,6 +1705,29 @@
           "chat"
         ],
         "title": "AgentName"
+      },
+      "AgentUsage": {
+        "properties": {
+          "agent": {
+            "type": "string",
+            "title": "Agent"
+          },
+          "requests": {
+            "type": "integer",
+            "title": "Requests"
+          },
+          "tokens": {
+            "type": "integer",
+            "title": "Tokens"
+          }
+        },
+        "type": "object",
+        "required": [
+          "agent",
+          "requests",
+          "tokens"
+        ],
+        "title": "AgentUsage"
       },
       "AuditLogOut": {
         "properties": {
@@ -1820,6 +1908,19 @@
         ],
         "title": "ConversationOut"
       },
+      "CountStats": {
+        "properties": {
+          "total": {
+            "type": "integer",
+            "title": "Total"
+          }
+        },
+        "type": "object",
+        "required": [
+          "total"
+        ],
+        "title": "CountStats"
+      },
       "CreateConversationRequest": {
         "properties": {
           "title": {
@@ -1988,6 +2089,32 @@
         ],
         "title": "DocumentOut"
       },
+      "DocumentStats": {
+        "properties": {
+          "total": {
+            "type": "integer",
+            "title": "Total"
+          },
+          "by_status": {
+            "additionalProperties": {
+              "type": "integer"
+            },
+            "type": "object",
+            "title": "By Status"
+          },
+          "storage_bytes": {
+            "type": "integer",
+            "title": "Storage Bytes"
+          }
+        },
+        "type": "object",
+        "required": [
+          "total",
+          "by_status",
+          "storage_bytes"
+        ],
+        "title": "DocumentStats"
+      },
       "DocumentStatus": {
         "type": "string",
         "enum": [
@@ -2114,6 +2241,27 @@
           "created_at"
         ],
         "title": "GenerationOut"
+      },
+      "GenerationStats": {
+        "properties": {
+          "total": {
+            "type": "integer",
+            "title": "Total"
+          },
+          "by_kind": {
+            "additionalProperties": {
+              "type": "integer"
+            },
+            "type": "object",
+            "title": "By Kind"
+          }
+        },
+        "type": "object",
+        "required": [
+          "total",
+          "by_kind"
+        ],
+        "title": "GenerationStats"
       },
       "GenerationSummary": {
         "properties": {
@@ -2610,6 +2758,64 @@
         "title": "TokenResponse",
         "description": "Access token in the body (keep it in memory); refresh token is set as an httpOnly cookie."
       },
+      "TokenStats": {
+        "properties": {
+          "last_30_days_total": {
+            "type": "integer",
+            "title": "Last 30 Days Total"
+          },
+          "per_day": {
+            "items": {
+              "$ref": "#/components/schemas/TokensPerDay"
+            },
+            "type": "array",
+            "title": "Per Day"
+          },
+          "per_agent": {
+            "items": {
+              "$ref": "#/components/schemas/AgentUsage"
+            },
+            "type": "array",
+            "title": "Per Agent"
+          }
+        },
+        "type": "object",
+        "required": [
+          "last_30_days_total",
+          "per_day",
+          "per_agent"
+        ],
+        "title": "TokenStats"
+      },
+      "TokensPerDay": {
+        "properties": {
+          "date": {
+            "type": "string",
+            "format": "date",
+            "title": "Date"
+          },
+          "prompt_tokens": {
+            "type": "integer",
+            "title": "Prompt Tokens"
+          },
+          "completion_tokens": {
+            "type": "integer",
+            "title": "Completion Tokens"
+          },
+          "total_tokens": {
+            "type": "integer",
+            "title": "Total Tokens"
+          }
+        },
+        "type": "object",
+        "required": [
+          "date",
+          "prompt_tokens",
+          "completion_tokens",
+          "total_tokens"
+        ],
+        "title": "TokensPerDay"
+      },
       "UpdateConversationRequest": {
         "properties": {
           "title": {
@@ -2738,6 +2944,37 @@
           "employee"
         ],
         "title": "UserRole"
+      },
+      "UserStats": {
+        "properties": {
+          "total": {
+            "type": "integer",
+            "title": "Total"
+          },
+          "by_role": {
+            "additionalProperties": {
+              "type": "integer"
+            },
+            "type": "object",
+            "title": "By Role"
+          },
+          "active_last_7_days": {
+            "type": "integer",
+            "title": "Active Last 7 Days"
+          },
+          "deactivated": {
+            "type": "integer",
+            "title": "Deactivated"
+          }
+        },
+        "type": "object",
+        "required": [
+          "total",
+          "by_role",
+          "active_last_7_days",
+          "deactivated"
+        ],
+        "title": "UserStats"
       },
       "ValidationError": {
         "properties": {

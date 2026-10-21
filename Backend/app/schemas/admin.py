@@ -1,5 +1,5 @@
 import uuid
-from datetime import datetime
+from datetime import date, datetime
 from typing import Any
 
 from pydantic import BaseModel, ConfigDict, EmailStr, Field, field_validator, model_validator
@@ -49,3 +49,57 @@ class AuditLogOut(BaseModel):
     meta: dict[str, Any] | None
     ip: str | None
     created_at: datetime
+
+
+# --- dashboard stats (GET /admin/stats) ---------------------------------------------------
+
+
+class UserStats(BaseModel):
+    total: int
+    by_role: dict[str, int]  # every role present, 0 if none
+    active_last_7_days: int  # logged in within the last 7 days
+    deactivated: int
+
+
+class DocumentStats(BaseModel):
+    total: int
+    by_status: dict[str, int]
+    storage_bytes: int
+
+
+class CountStats(BaseModel):
+    total: int
+
+
+class GenerationStats(BaseModel):
+    total: int
+    by_kind: dict[str, int]
+
+
+class TokensPerDay(BaseModel):
+    date: date
+    prompt_tokens: int
+    completion_tokens: int
+    total_tokens: int
+
+
+class AgentUsage(BaseModel):
+    agent: str
+    requests: int
+    tokens: int
+
+
+class TokenStats(BaseModel):
+    last_30_days_total: int
+    per_day: list[TokensPerDay]  # 30 entries, oldest first, missing days = 0
+    per_agent: list[AgentUsage]  # last 30 days, most tokens first
+
+
+class AdminStats(BaseModel):
+    generated_at: datetime
+    users: UserStats
+    documents: DocumentStats
+    conversations: CountStats
+    messages: CountStats
+    generations: GenerationStats
+    tokens: TokenStats

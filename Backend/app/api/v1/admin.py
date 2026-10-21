@@ -1,4 +1,4 @@
-"""Admin-only: user management and activity log (stats come in Phase 7)."""
+"""Admin-only: user management, activity log, dashboard stats."""
 
 import uuid
 from typing import Annotated
@@ -10,12 +10,14 @@ from app.core.deps import ClientIP, require_roles
 from app.core.pagination import DEFAULT_LIMIT, CursorParam, LimitParam, Page
 from app.models import User, UserRole
 from app.schemas.admin import (
+    AdminStats,
     AuditLogOut,
     CreatedUserResponse,
     CreateUserRequest,
     UpdateUserRequest,
 )
 from app.schemas.users import UserOut
+from app.services import stats as stats_service
 from app.services import users as users_service
 
 router = APIRouter(prefix="/admin", tags=["admin"])
@@ -73,3 +75,11 @@ async def list_activity(
         for log, email in rows
     ]
     return Page(items=items, next_cursor=next_cursor)
+
+
+@router.get("/stats")
+async def dashboard_stats(
+    admin: Admin, db: DbSession, cache: stats_service.StatsCache
+) -> AdminStats:
+    """Everything the admin dashboard charts need, for your organization (cached 60 s)."""
+    return await stats_service.get_stats(db, cache, admin.org_id)
