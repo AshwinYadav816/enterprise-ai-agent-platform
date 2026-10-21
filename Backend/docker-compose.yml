@@ -1,0 +1,42 @@
+# Local stack: Postgres (eap + eap_test), Redis, and Qdrant (reused from ../ai).
+#   docker compose up -d        (run from Backend/)
+name: eap
+
+include:
+  - ../ai/docker-compose.yml # qdrant on 6333/6334: one definition, shared with the AI module
+
+services:
+  postgres:
+    image: postgres:16
+    restart: unless-stopped
+    environment:
+      POSTGRES_USER: ${POSTGRES_USER:-eap}
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:-eap}
+      POSTGRES_DB: eap
+    ports:
+      - "5432:5432"
+    volumes:
+      - postgres_data:/var/lib/postgresql/data
+      - ./docker/postgres-init:/docker-entrypoint-initdb.d:ro # creates eap_test on first start
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U ${POSTGRES_USER:-eap} -d eap"]
+      interval: 5s
+      timeout: 3s
+      retries: 10
+
+  redis:
+    image: redis:7
+    restart: unless-stopped
+    ports:
+      - "6379:6379"
+    volumes:
+      - redis_data:/data
+    healthcheck:
+      test: ["CMD", "redis-cli", "ping"]
+      interval: 5s
+      timeout: 3s
+      retries: 10
+
+volumes:
+  postgres_data:
+  redis_data:
