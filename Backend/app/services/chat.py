@@ -11,7 +11,7 @@ import asyncio
 import json
 import logging
 import uuid
-from collections.abc import AsyncIterator, Sequence
+from collections.abc import AsyncIterator
 from typing import Any
 
 from sqlalchemy import func, select
@@ -21,11 +21,11 @@ from app.core.config import get_settings
 from app.core.db import SessionFactory
 from app.core.errors import AppError
 from app.core.pagination import next_cursor_for, paginate
-from app.models import Conversation, Document, Message, MessageRole, MessageStatus, User
+from app.models import Conversation, Message, MessageRole, MessageStatus, User
 from app.schemas.chat import SendMessageRequest
 from app.services import audit
 from app.services.ai_gateway import AgentRequest, AIGateway, ChatMessage, user_ctx
-from app.services.documents import visible_to
+from app.services.documents import ensure_visible
 
 log = logging.getLogger(__name__)
 
@@ -123,16 +123,6 @@ async def list_messages(
 # --- preparing a turn (request session, before streaming) ---------------------
 
 
-async def _check_documents(db: AsyncSession, user: User, doc_ids: Sequence[uuid.UUID]) -> None:
-    if not doc_ids:
-        return
-    found = set(
-        await db.scalars(select(Document.id).where(Document.id.in_(doc_ids), visible_to(user)))
-    )
-    if found != set(doc_ids):
-        raise AppError("document_not_found", "One or more documents were not found", 404)
-
-
 async def _context_messages(db: AsyncSession, conversation_id: uuid.UUID) -> list[Message]:
     """Messages that make up the conversation context, oldest first (failed replies excluded)."""
     rows = await db.scalars(
@@ -172,7 +162,7 @@ async def prepare_turn(
 ) -> tuple[Conversation, AgentRequest]:
     conv = await get_owned(db, user, conversation_id)
     doc_ids = list(dict.fromkeys(data.doc_ids or []))
-    await _check_documents(db, user, doc_ids)
+    await ensure_visible(db, user, doc_ids)
 
     context = await _context_messages(db, conv.id)
     await _update_summary(db, ai, conv, context)

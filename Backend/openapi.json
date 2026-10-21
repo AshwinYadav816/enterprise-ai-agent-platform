@@ -1230,6 +1230,401 @@
           }
         }
       }
+    },
+    "/api/v1/tools/meetings": {
+      "post": {
+        "tags": [
+          "tools"
+        ],
+        "summary": "Summarize Meeting",
+        "description": "Summarize a meeting. Send JSON `{transcript, title?}` or multipart `file` (+ `title`).",
+        "operationId": "summarize_meeting_api_v1_tools_meetings_post",
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "properties": {
+                  "transcript": {
+                    "type": "string",
+                    "maxLength": 200000,
+                    "minLength": 1,
+                    "title": "Transcript"
+                  },
+                  "title": {
+                    "anyOf": [
+                      {
+                        "type": "string",
+                        "maxLength": 200
+                      },
+                      {
+                        "type": "null"
+                      }
+                    ],
+                    "title": "Title"
+                  }
+                },
+                "type": "object",
+                "required": [
+                  "transcript"
+                ],
+                "title": "MeetingRequest"
+              }
+            },
+            "multipart/form-data": {
+              "schema": {
+                "properties": {
+                  "file": {
+                    "type": "string",
+                    "format": "binary",
+                    "description": ".txt, .vtt or .docx"
+                  },
+                  "title": {
+                    "type": "string"
+                  }
+                },
+                "type": "object",
+                "required": [
+                  "file"
+                ]
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "201": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/GenerationOut"
+                }
+              }
+            }
+          }
+        },
+        "security": [
+          {
+            "HTTPBearer": []
+          }
+        ]
+      }
+    },
+    "/api/v1/tools/reports": {
+      "post": {
+        "tags": [
+          "tools"
+        ],
+        "summary": "Write Report",
+        "operationId": "write_report_api_v1_tools_reports_post",
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/ReportRequest"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "201": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/GenerationOut"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        },
+        "security": [
+          {
+            "HTTPBearer": []
+          }
+        ]
+      }
+    },
+    "/api/v1/tools/emails": {
+      "post": {
+        "tags": [
+          "tools"
+        ],
+        "summary": "Write Email",
+        "operationId": "write_email_api_v1_tools_emails_post",
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/EmailRequest"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "201": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/GenerationOut"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        },
+        "security": [
+          {
+            "HTTPBearer": []
+          }
+        ]
+      }
+    },
+    "/api/v1/tools/documents/{document_id}/insights": {
+      "post": {
+        "tags": [
+          "tools"
+        ],
+        "summary": "Document Insights",
+        "operationId": "document_insights_api_v1_tools_documents__document_id__insights_post",
+        "security": [
+          {
+            "HTTPBearer": []
+          }
+        ],
+        "parameters": [
+          {
+            "name": "document_id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "format": "uuid",
+              "title": "Document Id"
+            }
+          }
+        ],
+        "responses": {
+          "201": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/GenerationOut"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/v1/tools/generations": {
+      "get": {
+        "tags": [
+          "tools"
+        ],
+        "summary": "List Generations",
+        "operationId": "list_generations_api_v1_tools_generations_get",
+        "security": [
+          {
+            "HTTPBearer": []
+          }
+        ],
+        "parameters": [
+          {
+            "name": "kind",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "$ref": "#/components/schemas/GenerationKind"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "Kind"
+            }
+          },
+          {
+            "name": "cursor",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "description": "next_cursor from the previous page",
+              "title": "Cursor"
+            },
+            "description": "next_cursor from the previous page"
+          },
+          {
+            "name": "limit",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "type": "integer",
+              "maximum": 100,
+              "minimum": 1,
+              "default": 20,
+              "title": "Limit"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Page_GenerationSummary_"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/v1/tools/generations/{generation_id}": {
+      "get": {
+        "tags": [
+          "tools"
+        ],
+        "summary": "Get Generation",
+        "operationId": "get_generation_api_v1_tools_generations__generation_id__get",
+        "security": [
+          {
+            "HTTPBearer": []
+          }
+        ],
+        "parameters": [
+          {
+            "name": "generation_id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "format": "uuid",
+              "title": "Generation Id"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/GenerationOut"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/v1/tools/generations/{generation_id}/pdf": {
+      "get": {
+        "tags": [
+          "tools"
+        ],
+        "summary": "Download Pdf",
+        "operationId": "download_pdf_api_v1_tools_generations__generation_id__pdf_get",
+        "security": [
+          {
+            "HTTPBearer": []
+          }
+        ],
+        "parameters": [
+          {
+            "name": "generation_id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "format": "uuid",
+              "title": "Generation Id"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/pdf": {}
+            }
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        }
+      }
     }
   },
   "components": {
@@ -1602,6 +1997,154 @@
         ],
         "title": "DocumentStatus"
       },
+      "EmailRequest": {
+        "properties": {
+          "task": {
+            "type": "string",
+            "enum": [
+              "draft",
+              "rewrite",
+              "grammar",
+              "tone",
+              "summarize_thread"
+            ],
+            "title": "Task"
+          },
+          "tone": {
+            "anyOf": [
+              {
+                "type": "string",
+                "enum": [
+                  "formal",
+                  "friendly",
+                  "concise",
+                  "persuasive"
+                ]
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Tone"
+          },
+          "text": {
+            "type": "string",
+            "maxLength": 20000,
+            "minLength": 1,
+            "title": "Text",
+            "description": "Notes, draft or thread"
+          }
+        },
+        "type": "object",
+        "required": [
+          "task",
+          "text"
+        ],
+        "title": "EmailRequest"
+      },
+      "GenerationKind": {
+        "type": "string",
+        "enum": [
+          "meeting",
+          "report",
+          "email",
+          "document_insights"
+        ],
+        "title": "GenerationKind"
+      },
+      "GenerationOut": {
+        "properties": {
+          "id": {
+            "type": "string",
+            "format": "uuid",
+            "title": "Id"
+          },
+          "kind": {
+            "$ref": "#/components/schemas/GenerationKind"
+          },
+          "title": {
+            "type": "string",
+            "title": "Title"
+          },
+          "input": {
+            "additionalProperties": true,
+            "type": "object",
+            "title": "Input"
+          },
+          "output": {
+            "additionalProperties": true,
+            "type": "object",
+            "title": "Output"
+          },
+          "markdown": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Markdown"
+          },
+          "prompt_tokens": {
+            "type": "integer",
+            "title": "Prompt Tokens"
+          },
+          "completion_tokens": {
+            "type": "integer",
+            "title": "Completion Tokens"
+          },
+          "created_at": {
+            "type": "string",
+            "format": "date-time",
+            "title": "Created At"
+          }
+        },
+        "type": "object",
+        "required": [
+          "id",
+          "kind",
+          "title",
+          "input",
+          "output",
+          "markdown",
+          "prompt_tokens",
+          "completion_tokens",
+          "created_at"
+        ],
+        "title": "GenerationOut"
+      },
+      "GenerationSummary": {
+        "properties": {
+          "id": {
+            "type": "string",
+            "format": "uuid",
+            "title": "Id"
+          },
+          "kind": {
+            "$ref": "#/components/schemas/GenerationKind"
+          },
+          "title": {
+            "type": "string",
+            "title": "Title"
+          },
+          "created_at": {
+            "type": "string",
+            "format": "date-time",
+            "title": "Created At"
+          }
+        },
+        "type": "object",
+        "required": [
+          "id",
+          "kind",
+          "title",
+          "created_at"
+        ],
+        "title": "GenerationSummary",
+        "description": "List item: no input/output payloads."
+      },
       "HTTPValidationError": {
         "properties": {
           "detail": {
@@ -1818,6 +2361,34 @@
         ],
         "title": "Page[DocumentOut]"
       },
+      "Page_GenerationSummary_": {
+        "properties": {
+          "items": {
+            "items": {
+              "$ref": "#/components/schemas/GenerationSummary"
+            },
+            "type": "array",
+            "title": "Items"
+          },
+          "next_cursor": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Next Cursor"
+          }
+        },
+        "type": "object",
+        "required": [
+          "items",
+          "next_cursor"
+        ],
+        "title": "Page[GenerationSummary]"
+      },
       "Page_MessageOut_": {
         "properties": {
           "items": {
@@ -1908,6 +2479,59 @@
           "password"
         ],
         "title": "RegisterRequest"
+      },
+      "ReportRequest": {
+        "properties": {
+          "report_type": {
+            "type": "string",
+            "enum": [
+              "weekly",
+              "monthly",
+              "sprint",
+              "project"
+            ],
+            "title": "Report Type"
+          },
+          "period": {
+            "type": "string",
+            "maxLength": 100,
+            "minLength": 1,
+            "title": "Period",
+            "examples": [
+              "14–20 Oct 2026",
+              "Sprint 7"
+            ]
+          },
+          "instruction": {
+            "type": "string",
+            "maxLength": 4000,
+            "minLength": 1,
+            "title": "Instruction"
+          },
+          "doc_ids": {
+            "anyOf": [
+              {
+                "items": {
+                  "type": "string",
+                  "format": "uuid"
+                },
+                "type": "array",
+                "maxItems": 20
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Doc Ids"
+          }
+        },
+        "type": "object",
+        "required": [
+          "report_type",
+          "period",
+          "instruction"
+        ],
+        "title": "ReportRequest"
       },
       "SendMessageRequest": {
         "properties": {

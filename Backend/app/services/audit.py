@@ -20,6 +20,7 @@ USER_REACTIVATED = "user.reactivated"
 DOCUMENT_UPLOADED = "document.uploaded"
 DOCUMENT_DELETED = "document.deleted"
 CONVERSATION_DELETED = "conversation.deleted"
+GENERATION_CREATED = "generation.created"
 
 
 async def log(

@@ -2,6 +2,7 @@
 
 import logging
 import uuid
+from collections.abc import Sequence
 from pathlib import PurePosixPath
 
 from fastapi import UploadFile
@@ -186,6 +187,17 @@ async def list_documents(
         (await db.scalars(paginate(stmt, Document.created_at, Document.id, cursor, limit))).all()
     )
     return rows, next_cursor_for(rows, limit)
+
+
+async def ensure_visible(db: AsyncSession, user: User, doc_ids: Sequence[uuid.UUID]) -> None:
+    """All ids must be documents this user may see (else one generic 404, no hints)."""
+    if not doc_ids:
+        return
+    found = set(
+        await db.scalars(select(Document.id).where(Document.id.in_(doc_ids), visible_to(user)))
+    )
+    if found != set(doc_ids):
+        raise AppError("document_not_found", "One or more documents were not found", 404)
 
 
 async def get_visible(db: AsyncSession, user: User, doc_id: uuid.UUID) -> Document:
