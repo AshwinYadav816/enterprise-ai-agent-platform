@@ -25,13 +25,19 @@ class IdMixin:
     id: Mapped[uuid.UUID] = mapped_column(UUID(as_uuid=True), primary_key=True, default=uuid.uuid4)
 
 
+# clock_timestamp(), not now(): now() is frozen at the start of the transaction, so rows written
+# in one transaction would share a timestamp and newest-first ordering / cursor pagination would
+# fall back to random UUID order. clock_timestamp() is the real insert time.
 class CreatedAtMixin:
     created_at: Mapped[datetime] = mapped_column(
-        DateTime(timezone=True), server_default=func.now(), nullable=False
+        DateTime(timezone=True), server_default=func.clock_timestamp(), nullable=False
     )
 
 
 class UpdatedAtMixin:
     updated_at: Mapped[datetime] = mapped_column(
-        DateTime(timezone=True), server_default=func.now(), onupdate=func.now(), nullable=False
+        DateTime(timezone=True),
+        server_default=func.clock_timestamp(),
+        onupdate=func.clock_timestamp(),
+        nullable=False,
     )

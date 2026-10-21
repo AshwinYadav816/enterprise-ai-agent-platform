@@ -2,7 +2,7 @@ from fastapi import APIRouter, Response
 
 from app.api.v1.auth import session_response
 from app.core.db import DbSession
-from app.core.deps import CurrentUserAllowPasswordChange
+from app.core.deps import ClientIP, CurrentUserAllowPasswordChange
 from app.schemas.auth import TokenResponse
 from app.schemas.users import ChangePasswordRequest, UpdateMeRequest, UserOut
 from app.services import auth as auth_service
@@ -32,7 +32,10 @@ async def change_password(
     user: CurrentUserAllowPasswordChange,
     db: DbSession,
     response: Response,
+    ip: ClientIP,
 ) -> TokenResponse:
     """Change password. All sessions are signed out; a fresh one is returned for this device."""
-    session = await auth_service.change_password(db, user, data.current_password, data.new_password)
+    session = await auth_service.change_password(
+        db, user, data.current_password, data.new_password, ip
+    )
     return session_response(response, session)

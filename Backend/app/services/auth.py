@@ -18,6 +18,7 @@ from app.core.security import (
 )
 from app.models import Organization, RefreshToken, User, UserRole
 from app.schemas.auth import LoginRequest, RegisterRequest
+from app.services import audit
 
 log = logging.getLogger(__name__)
 
@@ -64,7 +65,7 @@ async def revoke_all(db: AsyncSession, user_id: object) -> None:
     )
 
 
-async def register(db: AsyncSession, data: RegisterRequest) -> Session:
+async def register(db: AsyncSession, data: RegisterRequest, ip: str | None = None) -> Session:
     if await db.scalar(select(User.id).where(User.email == data.email)):
         raise AppError("email_taken", "An account with this email already exists", 409)
     org = Organization(name=data.org_name.strip())
@@ -81,19 +82,43 @@ async def register(db: AsyncSession, data: RegisterRequest) -> Session:
     db.add(user)
     await db.flush()
     await db.refresh(user)
+    await audit.log(
+        db,
+        org_id=org.id,
+        user_id=user.id,
+        action=audit.REGISTER,
+        meta={"org_name": org.name},
+        ip=ip,
+    )
     return await issue_session(db, user)
 
 
-async def login(db: AsyncSession, data: LoginRequest) -> Session:
+async def login(db: AsyncSession, data: LoginRequest, ip: str | None = None) -> Session:
     user = await db.scalar(select(User).where(User.email == data.email))
     valid, new_hash = verify_password(data.password, user.password_hash if user else None)
-    if user is None or not valid:
+    if user is None:
+        # No org to attach an audit row to (org_id is required): app log only.
+        log.info("Login failed for unknown email from %s", ip)
+        raise _invalid_credentials()
+    if not valid:
+        await audit.log(
+            db,
+            org_id=user.org_id,
+            user_id=None,
+            action=audit.LOGIN_FAILED,
+            target_type="user",
+            target_id=user.id,
+            meta={"email": data.email},
+            ip=ip,
+        )
+        await db.commit()  # keep the audit row: the error below makes get_db roll back
         raise _invalid_credentials()
     if not user.is_active:
         raise AppError("account_disabled", "This account has been deactivated", 403)
     if new_hash:  # hashing parameters were upgraded since this password was set
         user.password_hash = new_hash
     user.last_login_at = _now()
+    await audit.log(db, org_id=user.org_id, user_id=user.id, action=audit.LOGIN, ip=ip)
     return await issue_session(db, user)
 
 
@@ -118,6 +143,14 @@ async def refresh(db: AsyncSession, raw_token: str | None) -> Session:
             "Refresh token reuse detected for user %s; revoking all sessions", token.user_id
         )
         await revoke_all(db, token.user_id)
+        if owner := await db.get(User, token.user_id):
+            await audit.log(
+                db,
+                org_id=owner.org_id,
+                user_id=owner.id,
+                action=audit.REFRESH_REUSE,
+                meta={"all_sessions_revoked": True},
+            )
         await db.commit()
         raise _invalid_refresh()
     if token.expires_at <= _now():
@@ -145,7 +178,9 @@ async def logout(db: AsyncSession, raw_token: str | None) -> None:
     )
 
 
-async def change_password(db: AsyncSession, user: User, current: str, new: str) -> Session:
+async def change_password(
+    db: AsyncSession, user: User, current: str, new: str, ip: str | None = None
+) -> Session:
     """Revokes every session (the refresh cookie isn't sent to this path, so the current one
     can't be singled out) and returns a fresh session for the caller."""
     valid, _ = verify_password(current, user.password_hash)
@@ -156,4 +191,5 @@ async def change_password(db: AsyncSession, user: User, current: str, new: str) 
     user.password_hash = hash_password(new)
     user.must_change_password = False
     await revoke_all(db, user.id)
+    await audit.log(db, org_id=user.org_id, user_id=user.id, action=audit.PASSWORD_CHANGED, ip=ip)
     return await issue_session(db, user)

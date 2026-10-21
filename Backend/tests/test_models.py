@@ -122,7 +122,10 @@ async def test_migrations_match_models(db_engine: AsyncEngine) -> None:
     async with db_engine.connect() as conn:
         diff = await conn.run_sync(
             lambda sync_conn: compare_metadata(
-                MigrationContext.configure(sync_conn, opts={"compare_type": True}), Base.metadata
+                MigrationContext.configure(
+                    sync_conn, opts={"compare_type": True, "compare_server_default": True}
+                ),
+                Base.metadata,
             )
         )
     assert diff == []

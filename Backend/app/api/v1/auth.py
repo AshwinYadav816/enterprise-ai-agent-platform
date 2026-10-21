@@ -46,9 +46,11 @@ def session_response(response: Response, session: auth_service.Session) -> Token
 
 
 @router.post("/register", status_code=status.HTTP_201_CREATED)
-async def register(data: RegisterRequest, db: DbSession, response: Response) -> TokenResponse:
+async def register(
+    data: RegisterRequest, db: DbSession, response: Response, ip: ClientIP
+) -> TokenResponse:
     """Create a new organization and its first admin, and log them in."""
-    return session_response(response, await auth_service.register(db, data))
+    return session_response(response, await auth_service.register(db, data, ip))
 
 
 @router.post("/login")
@@ -56,7 +58,7 @@ async def login(
     data: LoginRequest, db: DbSession, response: Response, ip: ClientIP, limiter: Limiter
 ) -> TokenResponse:
     await limiter.login(ip, data.email)
-    return session_response(response, await auth_service.login(db, data))
+    return session_response(response, await auth_service.login(db, data, ip))
 
 
 @router.post("/refresh")
