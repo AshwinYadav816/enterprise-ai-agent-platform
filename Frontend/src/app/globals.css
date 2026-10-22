@@ -1,0 +1,214 @@
+@import "tailwindcss";
+@import "tw-animate-css";
+@import "shadcn/tailwind.css";
+
+/*
+ * Design system: Warm Ivory · Deep Editorial Blue · Touch of Coral (plan Part C).
+ * Colors live ONLY here. Components use the Tailwind names (bg-primary, text-coral-text, …),
+ * never hex values. Light theme only; dark mode would redefine these variables under `.dark`.
+ *
+ * Coral rule: blue does the work, coral is the signature (~5 % of a screen). `coral` is for
+ * non-text accents only (active-nav bar, streaming cursor, new dots, logo dot, chart highlight).
+ * Coral TEXT always uses `coral-text`. shadcn's `accent` is the hover background of menus and
+ * ghost buttons, so it is blue-tint, never coral.
+ */
+
+@custom-variant dark (&:is(.dark *));
+
+:root {
+  /* surfaces */
+  --background: #faf6ee; /* warm ivory page */
+  --foreground: #1a2233; /* ink, 14.8:1 */
+  --card: #fffdf8;
+  --card-foreground: #1a2233;
+  --popover: #fffdf8;
+  --popover-foreground: #1a2233;
+  --muted: #f3ede1; /* sidebar, table headers, skeletons */
+  --muted-foreground: #5b6475; /* 5.5:1 */
+  --border: #e6ddcc; /* 1px rules */
+  --input: #d9cfbc; /* input borders, a step darker for visibility */
+
+  /* editorial blue */
+  --primary: #1d3461; /* 11.4:1 */
+  --primary-foreground: #faf6ee;
+  --primary-hover: #162849;
+  --blue-tint: #e6ecf5; /* selection, active nav, user bubble */
+  --secondary: #f3ede1;
+  --secondary-foreground: #1d3461;
+  --accent: #e6ecf5; /* shadcn hover background: blue-tint, NOT coral */
+  --accent-foreground: #1d3461;
+  --ring: #1d3461;
+
+  /* coral signature */
+  --coral: #e8664a; /* non-text accents only (3.0:1) */
+  --coral-text: #b8452b; /* coral-coloured text, 5.0:1 */
+  --coral-tint: #fce8e1; /* coral badge background */
+
+  /* status (text + icon, never colour alone) */
+  --success: #2a7353; /* plan #2F7D5B, darkened to keep AA on its tint */
+  --success-tint: #e4f1e9;
+  --warning: #8a5a00;
+  --warning-tint: #f8eed9;
+  --destructive: #b42318;
+  --destructive-tint: #fbe7e4;
+
+  /* charts, in order */
+  --chart-1: #1d3461;
+  --chart-2: #e8664a;
+  --chart-3: #6b8cb8;
+  --chart-4: #d9a441;
+  --chart-5: #5e8c7a;
+  --chart-grid: #e6ddcc;
+  --chart-axis: #5b6475;
+
+  /* sidebar */
+  --sidebar: #f3ede1;
+  --sidebar-foreground: #1a2233;
+  --sidebar-primary: #1d3461;
+  --sidebar-primary-foreground: #faf6ee;
+  --sidebar-accent: #e6ecf5;
+  --sidebar-accent-foreground: #1d3461;
+  --sidebar-border: #e6ddcc;
+  --sidebar-ring: #1d3461;
+
+  --radius: 0.5rem; /* 8px: cards, inputs, buttons */
+}
+
+@theme inline {
+  --color-background: var(--background);
+  --color-foreground: var(--foreground);
+  --color-card: var(--card);
+  --color-card-foreground: var(--card-foreground);
+  --color-popover: var(--popover);
+  --color-popover-foreground: var(--popover-foreground);
+  --color-muted: var(--muted);
+  --color-muted-foreground: var(--muted-foreground);
+  --color-border: var(--border);
+  --color-input: var(--input);
+  --color-primary: var(--primary);
+  --color-primary-foreground: var(--primary-foreground);
+  --color-primary-hover: var(--primary-hover);
+  --color-blue-tint: var(--blue-tint);
+  --color-secondary: var(--secondary);
+  --color-secondary-foreground: var(--secondary-foreground);
+  --color-accent: var(--accent);
+  --color-accent-foreground: var(--accent-foreground);
+  --color-ring: var(--ring);
+  --color-coral: var(--coral);
+  --color-coral-text: var(--coral-text);
+  --color-coral-tint: var(--coral-tint);
+  --color-success: var(--success);
+  --color-success-tint: var(--success-tint);
+  --color-warning: var(--warning);
+  --color-warning-tint: var(--warning-tint);
+  --color-destructive: var(--destructive);
+  --color-destructive-tint: var(--destructive-tint);
+  --color-chart-1: var(--chart-1);
+  --color-chart-2: var(--chart-2);
+  --color-chart-3: var(--chart-3);
+  --color-chart-4: var(--chart-4);
+  --color-chart-5: var(--chart-5);
+  --color-chart-grid: var(--chart-grid);
+  --color-chart-axis: var(--chart-axis);
+  --color-sidebar: var(--sidebar);
+  --color-sidebar-foreground: var(--sidebar-foreground);
+  --color-sidebar-primary: var(--sidebar-primary);
+  --color-sidebar-primary-foreground: var(--sidebar-primary-foreground);
+  --color-sidebar-accent: var(--sidebar-accent);
+  --color-sidebar-accent-foreground: var(--sidebar-accent-foreground);
+  --color-sidebar-border: var(--sidebar-border);
+  --color-sidebar-ring: var(--sidebar-ring);
+
+  /* fonts come from next/font in app/layout.tsx */
+  --font-sans: var(--font-inter), ui-sans-serif, system-ui, sans-serif;
+  --font-serif: var(--font-newsreader), ui-serif, Georgia, serif;
+  --font-mono: var(--font-jetbrains-mono), ui-monospace, monospace;
+  --font-heading: var(--font-newsreader), ui-serif, Georgia, serif;
+
+  --radius-sm: calc(var(--radius) * 0.5);
+  --radius-md: calc(var(--radius) * 0.75);
+  --radius-lg: var(--radius); /* 8px */
+  --radius-xl: 0.75rem; /* 12px: dialogs */
+  --radius-2xl: 1rem;
+  --radius-3xl: 1.5rem;
+  --radius-4xl: 2rem;
+
+  /* depth by borders; only floating layers (popovers, menus, dialogs) get this shadow */
+  --shadow-pop: 0 8px 24px rgb(26 34 51 / 0.08);
+}
+
+/*
+ * Type scale (plan Part C). Utilities named type-* (not text-*) so class merging never confuses
+ * them with text colours.
+ */
+@utility type-display {
+  font-family: var(--font-serif);
+  font-size: 2rem; /* 32/40 page titles */
+  line-height: 2.5rem;
+  font-weight: 600;
+  letter-spacing: -0.01em;
+}
+@utility type-title {
+  font-family: var(--font-serif);
+  font-size: 1.375rem; /* 22/28 section titles */
+  line-height: 1.75rem;
+  font-weight: 600;
+}
+@utility type-answer {
+  font-family: var(--font-serif);
+  font-size: 1.0625rem; /* 17/28 assistant messages */
+  line-height: 1.75rem;
+}
+@utility type-body {
+  font-size: 0.9375rem; /* 15/24 base */
+  line-height: 1.5rem;
+}
+@utility type-small {
+  font-size: 0.8125rem; /* 13/20 */
+  line-height: 1.25rem;
+}
+@utility type-eyebrow {
+  font-size: 0.75rem; /* 12px uppercase section eyebrow */
+  line-height: 1rem;
+  font-weight: 600;
+  letter-spacing: 0.06em;
+  text-transform: uppercase;
+}
+
+@layer base {
+  * {
+    @apply border-border outline-ring/50;
+  }
+  html {
+    @apply font-sans;
+  }
+  body {
+    @apply bg-background type-body text-foreground;
+    text-rendering: optimizeLegibility;
+  }
+  ::selection {
+    background: var(--blue-tint);
+    color: var(--primary);
+  }
+  button:not(:disabled),
+  [role="button"]:not(:disabled) {
+    cursor: pointer;
+  }
+  /* Elements without their own focus style (links, summaries, custom widgets) */
+  :where(a, summary, [tabindex]):focus-visible {
+    outline: 2px solid var(--ring);
+    outline-offset: 2px;
+    border-radius: 2px;
+  }
+  /* Motion: 150ms hovers / 200ms dialogs come from component classes; honour reduced motion */
+  @media (prefers-reduced-motion: reduce) {
+    *,
+    *::before,
+    *::after {
+      animation-duration: 0.01ms !important;
+      animation-iteration-count: 1 !important;
+      transition-duration: 0.01ms !important;
+      scroll-behavior: auto !important;
+    }
+  }
+}

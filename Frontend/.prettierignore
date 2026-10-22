@@ -1,0 +1,7 @@
+.next
+node_modules
+src/lib/api/schema.d.ts
+package-lock.json
+docs
+CLAUDE.md
+AGENTS.md
