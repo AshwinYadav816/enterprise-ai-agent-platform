@@ -53,6 +53,7 @@ variable).
 | `npm test` / `npx vitest run` | unit tests (watch / once)                                           |
 | `npx playwright test`         | end-to-end tests (below)                                            |
 | `npm run gen:api`             | regenerate `src/lib/api/schema.d.ts` from `../Backend/openapi.json` |
+| `npm run check:api`           | fails if `schema.d.ts` is out of date (for CI)                      |
 | `npm run format`              | Prettier (sorts Tailwind classes)                                   |
 
 ### When the backend API changes
@@ -62,7 +63,10 @@ cd ../Backend && uv run python scripts/export_openapi.py   # writes openapi.json
 cd ../Frontend && npm run gen:api && npm run typecheck      # shows exactly what broke
 ```
 
-API types are never written by hand; `schema.d.ts` is generated and committed.
+API types are never written by hand; `schema.d.ts` is generated and committed. The one exception
+is the chat stream (SSE events and agent result cards, `src/lib/chat/types.ts`), which OpenAPI
+can't describe: `Backend/tests/test_frontend_contract.py` fails if the AI module's result shapes
+change, so the frontend gets updated with them.
 
 ### End-to-end tests (Playwright)
 

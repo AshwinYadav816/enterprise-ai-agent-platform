@@ -15,13 +15,13 @@ export type UserRole = components["schemas"]["UserRole"];
 export type CreateUserRequest = components["schemas"]["CreateUserRequest"];
 export type CreatedUser = components["schemas"]["CreatedUserResponse"];
 
-/** Dashboard numbers: one call; the backend caches them for 60 s. */
+/** Dashboard numbers: one call; the backend caches them for 60 s. No background polling
+ *  (nothing is "processing" here): the page has a Refresh button. */
 export function useAdminStats() {
   return useQuery({
     queryKey: keys.admin.stats(),
     queryFn: async () => unwrap(await api.GET("/api/v1/admin/stats")),
     staleTime: 60_000,
-    refetchInterval: 60_000,
   });
 }
 

@@ -95,7 +95,7 @@ export function AdminDashboard() {
             <GenerationsChart generations={stats.data.generations} />
           </div>
           <p className="type-small text-muted-foreground">
-            Numbers refresh every minute. Users by role:{" "}
+            Numbers can be up to a minute old; use Refresh for the latest. Users by role:{" "}
             {Object.entries(stats.data.users.by_role)
               .map(([role, n]) => `${n} ${role}${n === 1 ? "" : "s"}`)
               .join(", ")}
