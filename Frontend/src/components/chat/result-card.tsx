@@ -30,37 +30,49 @@ const EYEBROW: Record<string, string> = {
 
 type ResultCardProps = {
   result: ResultData;
-  /** For "Download PDF": the saved message and this result's position in it. */
-  pdf?: { conversationId: string; messageId: string; index: number };
+  /** "Download PDF": API path after /api/v1 (chat result or saved generation). */
+  pdfPath?: string;
+  /** Title shown instead of the derived one (e.g. a saved generation's title). */
+  title?: string;
+  /** More buttons next to Copy / Download PDF (e.g. "Open in History"). */
+  actions?: React.ReactNode;
+  /** Hide the eyebrow + title when the page already shows them (History detail). */
+  showHeader?: boolean;
+  className?: string;
 };
 
-export function ResultCard({ result, pdf }: ResultCardProps) {
+export function ResultCard({
+  result,
+  pdfPath,
+  title,
+  actions,
+  showHeader = true,
+  className,
+}: ResultCardProps) {
   if (!hasCard(result)) return null;
-  const { title, body, copyText } = renderResult(result);
+  const rendered = renderResult(result);
 
   return (
-    <section className="my-4 overflow-hidden rounded-lg border bg-card font-sans">
-      <div className="space-y-1 px-5 pt-4">
-        <p className="type-eyebrow text-muted-foreground">{EYEBROW[result.agent]}</p>
-        <h3 className="type-title text-balance">{title}</h3>
-      </div>
-      <div className="space-y-4 px-5 py-4 text-[0.9375rem] leading-relaxed">{body}</div>
+    <section className={cn("my-4 overflow-hidden rounded-lg border bg-card font-sans", className)}>
+      {showHeader && (
+        <div className="space-y-1 px-5 pt-4">
+          <p className="type-eyebrow text-muted-foreground">{EYEBROW[result.agent]}</p>
+          <h3 className="type-title text-balance">{title ?? rendered.title}</h3>
+        </div>
+      )}
+      <div className="space-y-4 px-5 py-4 text-[0.9375rem] leading-relaxed">{rendered.body}</div>
       <div className="flex flex-wrap gap-1 border-t bg-muted/50 px-3 py-2">
-        <CopyButton text={copyText} label="Copy" />
-        {pdf && (
+        <CopyButton text={rendered.copyText} label="Copy" />
+        {pdfPath && (
           <Button
             variant="ghost"
             size="sm"
-            onClick={() =>
-              downloadFile(
-                `/conversations/${pdf.conversationId}/messages/${pdf.messageId}/results/${pdf.index}/pdf`,
-                `${result.agent}.pdf`,
-              ).catch(toastError)
-            }
+            onClick={() => downloadFile(pdfPath, `${result.agent}.pdf`).catch(toastError)}
           >
             <Download /> Download PDF
           </Button>
         )}
+        {actions}
       </div>
     </section>
   );

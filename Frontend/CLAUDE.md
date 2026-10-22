@@ -97,6 +97,17 @@ npm run build        # production build; run before committing a phase
 - Headless Chrome blocks repeated automatic downloads in a reused profile: test downloads in a
   fresh profile (the app itself is fine).
 
+## Tools & history (Phase 5)
+- `lib/hooks/use-tools.ts`: one mutation per tool (meeting JSON or multipart file, report, email,
+  document insights), `useGenerations(kind)`, `useGeneration(id)`. Tool mutations are
+  `silentError`: the result panel shows the error (429 → "too quickly" message).
+- Generations reuse the chat `ResultCard` via `generationResult()` (kind → agent; document_insights
+  → document). `ResultCard` takes `pdfPath`, `title`, `actions`, `showHeader`.
+- Forms (`components/tools/*-form.tsx`) are API-free: `onSubmit(body)` + `pending`, so they are
+  unit-testable. Use `useWatch`, not `watch()` (React Compiler lint).
+- shadcn `TabsList` forces `h-8` via `group-data-horizontal/tabs:h-8`; override with
+  `group-data-horizontal/tabs:h-auto` for wrapping/grid tab lists.
+
 ## Next.js 16 notes (verified in node_modules/next/dist/docs)
 - `cacheComponents` + `partialPrefetching` are on. Recently visited routes stay mounted (hidden with
   React `<Activity>`) instead of unmounting: effects are cleaned up when hidden, but component state

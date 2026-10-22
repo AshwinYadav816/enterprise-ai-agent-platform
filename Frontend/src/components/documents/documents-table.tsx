@@ -11,7 +11,9 @@ import {
   Sparkles,
   Trash2,
 } from "lucide-react";
+import { useRouter } from "next/navigation";
 import { useState } from "react";
+import { toast } from "sonner";
 
 import { StatusBadge } from "@/components/documents/status-badge";
 import { VisibilityBadge } from "@/components/documents/visibility-select";
@@ -44,10 +46,11 @@ import {
 import { Tooltip, TooltipContent, TooltipTrigger } from "@/components/ui/tooltip";
 import type { User } from "@/lib/api/auth";
 import { downloadFile } from "@/lib/api/download";
-import { toastError } from "@/lib/api/errors";
+import { errorMessage, toastError } from "@/lib/api/errors";
 import { extensionOf, type Document } from "@/lib/documents";
 import { formatBytes, formatDateTime, formatRelative } from "@/lib/format";
 import { useDeleteDocument } from "@/lib/hooks/use-documents";
+import { useDocumentInsights } from "@/lib/hooks/use-tools";
 
 const TYPE_ICON = { pdf: FileText, docx: FileType, pptx: Presentation, xlsx: FileSpreadsheet };
 
@@ -189,8 +192,23 @@ function DocumentActions({
   user: User;
   onDelete: () => void;
 }) {
+  const router = useRouter();
+  const insights = useDocumentInsights();
   const download = () =>
     downloadFile(`/documents/${doc.id}/download`, doc.filename).catch(toastError);
+  // Takes ~5–15 s: keep a toast up meanwhile, then open the result in History.
+  const getInsights = () => {
+    const toastId = toast.loading(`Reading ${doc.filename}…`, {
+      description: "This can take up to a minute.",
+    });
+    insights.mutate(doc.id, {
+      onSuccess: (generation) => {
+        toast.dismiss(toastId);
+        router.push(`/history/${generation.id}`);
+      },
+      onError: (error) => toast.error(errorMessage(error), { id: toastId, description: undefined }),
+    });
+  };
 
   return (
     <DropdownMenu>
@@ -203,17 +221,15 @@ function DocumentActions({
         <DropdownMenuItem onSelect={download}>
           <Download /> Download
         </DropdownMenuItem>
-        {/* Phase 5: POST insights → /history/[id] */}
-        <Tooltip>
-          <TooltipTrigger asChild>
-            <div>
-              <DropdownMenuItem disabled>
-                <Sparkles /> Get insights
-              </DropdownMenuItem>
-            </div>
-          </TooltipTrigger>
-          <TooltipContent side="left">Coming soon</TooltipContent>
-        </Tooltip>
+        <DropdownMenuItem
+          onSelect={getInsights}
+          disabled={doc.status !== "ready" || insights.isPending}
+        >
+          <Sparkles /> Get insights
+          {doc.status === "processing" && (
+            <span className="ml-auto text-xs text-muted-foreground">Processing</span>
+          )}
+        </DropdownMenuItem>
         {canDelete(doc, user) && (
           <>
             <DropdownMenuSeparator />

@@ -121,7 +121,11 @@ export function AssistantMessage({
         <ResultCard
           key={index}
           result={result}
-          pdf={view.messageId ? { conversationId, messageId: view.messageId, index } : undefined}
+          pdfPath={
+            view.messageId
+              ? `/conversations/${conversationId}/messages/${view.messageId}/results/${index}/pdf`
+              : undefined
+          }
         />
       ))}
 
