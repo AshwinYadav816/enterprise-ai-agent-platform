@@ -41,6 +41,22 @@ npm run build        # production build; run before committing a phase
   works at 390 px wide, respects `prefers-reduced-motion`.
 - Poll only while something is `processing`.
 
+## API layer (Phase 1)
+- `api` (`lib/api/client.ts`): typed openapi-fetch client; paths include `/api/v1`
+  (`api.GET("/api/v1/users/me")`). Wrap results with `unwrap()` → data or throws `ApiError`
+  (`status`, `code`, `message`, `details` for 422 fields).
+- Everything authenticated goes through `authFetch` (`lib/api/auth.ts`): Bearer token, 401 → one
+  refresh → one retry; auth endpoints are never retried. Reuse it for downloads and the SSE stream.
+- **Refresh is dangerous to duplicate**: the backend rotates the cookie and revokes ALL sessions if
+  an old one is replayed. Only call `refreshAccessToken()` (single-flight in the tab + Web Locks
+  across tabs); never POST /auth/refresh directly.
+- `useAuth()` → `{user, status, login, register, logout, refreshUser}`; `login`/`register` return the
+  session (check `must_change_password`). Session restore uses the user from the refresh response
+  (no extra GET /users/me).
+- Query keys only from `lib/api/keys.ts`. Mutations toast errors globally; pass
+  `meta: { silentError: true }` when the form shows the error itself. Queries retry once, never on 4xx.
+- Downloads: `downloadFile("/documents/{id}/download", "fallback.pdf")`.
+
 ## Next.js 16 notes (verified in node_modules/next/dist/docs)
 - `cacheComponents` + `partialPrefetching` are on. Recently visited routes stay mounted (hidden with
   React `<Activity>`) instead of unmounting: effects are cleaned up when hidden, but component state
