@@ -1,19 +1,9 @@
-"use client";
+import type { Metadata } from "next";
 
-import { useParams } from "next/navigation";
+import { ConversationRoute } from "@/components/chat/conversation-route";
 
-import { EmptyState } from "@/components/common/empty-state";
-import { PageHeader } from "@/components/common/page-header";
+export const metadata: Metadata = { title: "Chat" };
 
-export default function Page() {
-  const { id } = useParams<{ id: string }>();
-  return (
-    <div className="space-y-8">
-      <PageHeader eyebrow="Chat" title="Conversation" />
-      <EmptyState
-        title="Coming soon"
-        description={<span className="font-mono text-xs">{id}</span>}
-      />
-    </div>
-  );
+export default function ConversationPage() {
+  return <ConversationRoute />;
 }

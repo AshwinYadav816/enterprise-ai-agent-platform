@@ -89,6 +89,8 @@ Tests refuse to run against a database whose name doesn't end in `_test`.
     (router runs meeting → email). `doc_ids` must be visible **and ready** (else 404 / 409).
   - `done` carries `message_id`; each `result` of that reply can be downloaded:
     `GET /conversations/{id}/messages/{message_id}/results/{index}/pdf`.
+  - History: `GET /conversations/{id}/messages` pages oldest → newest; `?order=desc` pages newest
+    first (open a chat at the latest messages, "Load earlier" with the cursor).
 - Areas: `auth`, `users/me`, `admin/users`, `admin/activity`, `admin/stats`, `documents`,
   `conversations`, `tools/{meetings,reports,emails,documents/{id}/insights}`, `tools/generations`.
 
@@ -113,6 +115,7 @@ AI module** (`eap_ai` reads `.env` from the working directory), so it must conta
 | `MAX_UPLOAD_MB` | `25` | document upload limit |
 | `MAX_JSON_BODY_KB` | `1024` | limit for every non-upload request body |
 | `AI_MODE` | `fake` | `real` calls the AI module (needs the AI variables below) |
+| `FAKE_AI_DELAY_MS` | `0` | fake mode only: pause between fake events so the UI visibly streams (dev: 80) |
 | `LOGIN_PER_MIN` / `AI_PER_MIN` / `AI_ORG_PER_MIN` | `5` / `30` / `60` | rate limits (per IP+email / per user / per org) |
 | `SSE_HEARTBEAT_SECONDS` | `15` | `: ping` interval on chat streams |
 | `MISTRAL_API_KEY` | — | AI module: required when `AI_MODE=real` |

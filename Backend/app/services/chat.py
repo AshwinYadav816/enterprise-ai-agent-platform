@@ -120,11 +120,17 @@ async def delete_conversation(
 
 
 async def list_messages(
-    db: AsyncSession, user: User, conversation_id: uuid.UUID, cursor: str | None, limit: int
+    db: AsyncSession,
+    user: User,
+    conversation_id: uuid.UUID,
+    cursor: str | None,
+    limit: int,
+    *,
+    newest_first: bool = False,
 ) -> tuple[list[Message], str | None]:
     await get_owned(db, user, conversation_id)
     stmt = select(Message).where(Message.conversation_id == conversation_id)
-    page = paginate(stmt, Message.created_at, Message.id, cursor, limit, ascending=True)
+    page = paginate(stmt, Message.created_at, Message.id, cursor, limit, ascending=not newest_first)
     rows = list((await db.scalars(page)).all())
     return rows, next_cursor_for(rows, limit)
 

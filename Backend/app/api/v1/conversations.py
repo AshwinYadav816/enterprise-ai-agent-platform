@@ -1,5 +1,5 @@
 import uuid
-from typing import Annotated
+from typing import Annotated, Literal
 from urllib.parse import quote
 
 from fastapi import APIRouter, Path, Response, status
@@ -64,9 +64,13 @@ async def list_messages(
     db: DbSession,
     cursor: CursorParam = None,
     limit: LimitParam = DEFAULT_LIMIT,
+    order: Literal["asc", "desc"] = "asc",
 ) -> Page[MessageOut]:
-    """History oldest → newest."""
-    rows, next_cursor = await chat_service.list_messages(db, user, conversation_id, cursor, limit)
+    """History oldest → newest. `order=desc` pages newest first (a chat opens at the latest
+    messages and loads earlier ones on demand)."""
+    rows, next_cursor = await chat_service.list_messages(
+        db, user, conversation_id, cursor, limit, newest_first=order == "desc"
+    )
     return Page(items=[MessageOut.model_validate(m) for m in rows], next_cursor=next_cursor)
 
 

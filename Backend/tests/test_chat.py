@@ -22,7 +22,14 @@ from app.models import (
     User,
     UserRole,
 )
-from app.services.ai_gateway import AgentRequest, ChatMessage, Event, FakeAIGateway, get_ai
+from app.services.ai_gateway import (
+    AgentRequest,
+    ChatMessage,
+    Event,
+    FakeAIGateway,
+    UserCtx,
+    get_ai,
+)
 from app.services.chat import SAFE_AI_ERROR, ChatTurn, relay
 from tests.factories import make_org, make_user
 
@@ -346,6 +353,25 @@ async def test_message_pagination_oldest_first(client: httpx.AsyncClient, db: As
     ).json()
     assert [m["content"] for m in page1["items"] + page2["items"]] == [f"m{i}" for i in range(5)]
     assert page2["next_cursor"] is None
+
+    # order=desc: newest page first, then older ones (a chat opens at the latest messages)
+    desc = {"limit": "3", "order": "desc"}
+    newest = (await client.get(url, headers=h, params=desc)).json()
+    older = (
+        await client.get(url, headers=h, params={**desc, "cursor": newest["next_cursor"]})
+    ).json()
+    assert [m["content"] for m in newest["items"]] == ["m4", "m3", "m2"]
+    assert [m["content"] for m in older["items"]] == ["m1", "m0"]
+    assert older["next_cursor"] is None
+
+
+async def test_fake_ai_delay_paces_events() -> None:
+    req = AgentRequest(query="hi", user=UserCtx(user_id="u", org_id="o", roles=["employee"]))
+    start = asyncio.get_running_loop().time()
+    events = [e.type async for e in FakeAIGateway(delay_ms=5).run(req)]
+    assert events[-1] == "done"
+    assert asyncio.get_running_loop().time() - start >= 0.005 * len(events)
+    assert FakeAIGateway().delay == 0  # tests and default settings stream instantly
 
 
 async def test_documents_still_processing_are_409(

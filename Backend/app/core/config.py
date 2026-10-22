@@ -40,6 +40,7 @@ class Settings(BaseSettings):
 
     # AI module: "fake" needs no Mistral key (local UI work, tests); "real" calls eap_ai
     ai_mode: Literal["fake", "real"] = "fake"
+    fake_ai_delay_ms: int = 0  # fake mode only: ms between events, so the UI visibly streams
 
     # Rate limits (requests per minute)
     login_per_min: int = 5  # per IP + email

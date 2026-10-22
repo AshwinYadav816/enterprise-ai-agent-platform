@@ -342,7 +342,8 @@ export interface paths {
         };
         /**
          * List Messages
-         * @description History oldest → newest.
+         * @description History oldest → newest. `order=desc` pages newest first (a chat opens at the latest
+         *     messages and loads earlier ones on demand).
          */
         get: operations["list_messages_api_v1_conversations__conversation_id__messages_get"];
         put?: never;
@@ -1759,6 +1760,7 @@ export interface operations {
                 /** @description next_cursor from the previous page */
                 cursor?: string | null;
                 limit?: number;
+                order?: "asc" | "desc";
             };
             header?: never;
             path: {

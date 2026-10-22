@@ -80,6 +80,23 @@ npm run build        # production build; run before committing a phase
 - Backend `DocumentOut.owner_name` exists for the Owner column (added in this phase).
 - shadcn dialog footers use `-mx-5 -mb-5` to match our `p-5` dialog padding.
 
+## Chat (Phase 4)
+- `lib/api/sse.ts` `streamMessage()` = fetchEventSource POST (openWhenHidden, onerror rethrows,
+  one retry only after a 401 + refresh). Event shapes: `lib/chat/types.ts`.
+- Live replies live in `lib/chat/stream-store.ts` (module store keyed by conversation, read via
+  `useChatStream`), NOT component state: survives /chat → /chat/[id] and hidden routes. Phases
+  streaming → settling → cleared once the saved reply is fetched (`knownMessageIds` / `messageId`);
+  `failed` = refused before saving (Retry). Navigation never stops a reply; only Stop does.
+  `resetStreams()` on logout.
+- History uses `GET …/messages?order=desc` (backend param added in Phase 4) → newest page first.
+- Only research/chat stream tokens; meeting/email/report/document answers arrive in `done` + a
+  `result` card. A single card agent's answer text is hidden (it repeats the card).
+- `[n]` → citation chip only if source n exists (`lib/chat/citations.ts`); raw HTML never rendered.
+- `/chat*` pages are full-bleed in AppShell (own height + scrolling).
+- Backend `FAKE_AI_DELAY_MS=80` (Backend/.env) makes fake replies stream visibly.
+- Headless Chrome blocks repeated automatic downloads in a reused profile: test downloads in a
+  fresh profile (the app itself is fine).
+
 ## Next.js 16 notes (verified in node_modules/next/dist/docs)
 - `cacheComponents` + `partialPrefetching` are on. Recently visited routes stay mounted (hidden with
   React `<Activity>`) instead of unmounting: effects are cleaned up when hidden, but component state

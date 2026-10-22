@@ -13,6 +13,7 @@ import {
   type User,
 } from "@/lib/api/auth";
 import { api } from "@/lib/api/client";
+import { resetStreams } from "@/lib/chat/stream-store";
 import { toastError, unwrap } from "@/lib/api/errors";
 import type { components } from "@/lib/api/schema";
 
@@ -41,6 +42,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
 
   const becomeAnonymous = useCallback(() => {
     clearToken();
+    resetStreams(); // stop any chat reply in progress
     setUser(null);
     setStatus("anonymous");
     queryClient.clear(); // never show one user's cached data to the next

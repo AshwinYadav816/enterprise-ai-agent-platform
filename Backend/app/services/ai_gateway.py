@@ -175,8 +175,9 @@ def _fake_output(agent: AgentName, query: str) -> tuple[dict[str, Any], dict[str
 class FakeAIGateway:
     """Deterministic stand-in with the real event shape. Records calls for tests."""
 
-    def __init__(self, *, ingest_error: Exception | None = None) -> None:
+    def __init__(self, *, ingest_error: Exception | None = None, delay_ms: int = 0) -> None:
         self.ingest_error = ingest_error
+        self.delay = delay_ms / 1000  # dev only (FAKE_AI_DELAY_MS): makes streaming visible
         self.ingested: list[DocMeta] = []
         self.deleted: list[tuple[str, str]] = []
         self.requests: list[AgentRequest] = []
@@ -194,6 +195,12 @@ class FakeAIGateway:
 
     async def run(self, req: AgentRequest) -> AsyncIterator[Event]:
         self.requests.append(req)
+        async for event in self._events(req):
+            if self.delay:
+                await asyncio.sleep(self.delay)
+            yield event
+
+    async def _events(self, req: AgentRequest) -> AsyncIterator[Event]:
         agent = req.force_agent or AgentName.research
         yield Event(type="status", data={"message": "Planning…"})
         yield Event(type="status", data={"message": f"Plan: {agent.value}"})
@@ -233,7 +240,7 @@ def _real() -> RealAIGateway:
 
 @lru_cache
 def _fake() -> FakeAIGateway:
-    return FakeAIGateway()
+    return FakeAIGateway(delay_ms=get_settings().fake_ai_delay_ms)
 
 
 def get_ai() -> AIGateway:

@@ -11,8 +11,8 @@ const nextConfig: NextConfig = {
     // Validate only segments that opt in with `export const instant`.
     instantInsights: { validationLevel: "manual-warning" },
   },
-  // Keep the dev-only Next.js badge away from the sidebar's user menu (bottom-left).
-  devIndicators: { position: "bottom-right" },
+  // Keep the dev-only Next.js badge away from the user menu and the chat composer.
+  devIndicators: { position: "top-right" },
   turbopack: {
     // This folder is the app root (the repo root also holds ai/ and Backend/); pinning it stops
     // Next from picking up stray lockfiles in parent folders.

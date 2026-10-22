@@ -1155,7 +1155,7 @@
           "conversations"
         ],
         "summary": "List Messages",
-        "description": "History oldest → newest.",
+        "description": "History oldest → newest. `order=desc` pages newest first (a chat opens at the latest\nmessages and loads earlier ones on demand).",
         "operationId": "list_messages_api_v1_conversations__conversation_id__messages_get",
         "security": [
           {
@@ -1201,6 +1201,20 @@
               "minimum": 1,
               "default": 20,
               "title": "Limit"
+            }
+          },
+          {
+            "name": "order",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "enum": [
+                "asc",
+                "desc"
+              ],
+              "type": "string",
+              "default": "asc",
+              "title": "Order"
             }
           }
         ],
