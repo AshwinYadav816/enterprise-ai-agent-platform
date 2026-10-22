@@ -117,6 +117,17 @@ npm run build        # production build; run before committing a phase
   wrapped in `ChartCard` (title, one-line takeaway, visually hidden data table). The only coral is
   today's point on the tokens chart.
 
+## Polish (Phase 7)
+- "/" = public landing for visitors (signed-in → app); `app/not-found.tsx`, `(app)/error.tsx`
+  (Next 16 error boundaries get `retry()`, preferred over `reset()`), `(app)/loading.tsx`.
+- Settings: profile (PATCH /users/me, then `refreshUser()`) + password section (same zod schema
+  as the change-password page, but stays on the page).
+- Coral appears only in: active-nav bar (sidebar + conversation list), wordmark dot, streaming
+  cursor, agent-status dot, streaming-conversation dot, today's point on the tokens chart.
+- Lighthouse accessibility = 100 on landing, login, chat, documents, settings (prod build).
+  Signed-in pages: run Lighthouse with `--port=<cdp port>` against an already logged-in Chrome
+  (a closed profile loses the session).
+
 ## Next.js 16 notes (verified in node_modules/next/dist/docs)
 - `cacheComponents` + `partialPrefetching` are on. Recently visited routes stay mounted (hidden with
   React `<Activity>`) instead of unmounting: effects are cleaned up when hidden, but component state

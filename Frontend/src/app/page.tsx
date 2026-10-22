@@ -1,5 +1,5 @@
-import { RootRedirect } from "@/components/layout/root-redirect";
+import { Landing } from "@/components/common/landing";
 
 export default function Home() {
-  return <RootRedirect />;
+  return <Landing />;
 }

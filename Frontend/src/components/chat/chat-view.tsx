@@ -257,7 +257,7 @@ function useSettleStream(
 function Welcome({ onPick }: { onPick: (text: string) => void }) {
   return (
     <div className="flex min-h-0 flex-1 flex-col items-center justify-center overflow-y-auto px-4 py-10 text-center">
-      <p className="type-eyebrow text-coral-text">Assistant</p>
+      <p className="type-eyebrow text-muted-foreground">Assistant</p>
       <h2 className="mt-2 max-w-xl type-display text-balance">What can I help you with today?</h2>
       <p className="mt-2 max-w-md text-muted-foreground">
         Ask about your documents, or hand a task to the meeting, report, email or research agent.
