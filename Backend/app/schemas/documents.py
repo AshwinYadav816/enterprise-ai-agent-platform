@@ -12,6 +12,7 @@ class DocumentOut(BaseModel):
 
     id: uuid.UUID
     owner_id: uuid.UUID
+    owner_name: str | None  # None only if the user row is gone
     filename: str
     content_type: str
     size_bytes: int

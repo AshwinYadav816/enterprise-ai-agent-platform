@@ -1,12 +1,13 @@
 import uuid
 from typing import Any
 
-from sqlalchemy import BigInteger, ForeignKey, Index, Integer, Text, text
+from sqlalchemy import BigInteger, ForeignKey, Index, Integer, Text, select, text
 from sqlalchemy.dialects.postgresql import ARRAY, JSONB  # postgres ARRAY: has .overlap() (&&)
-from sqlalchemy.orm import Mapped, mapped_column
+from sqlalchemy.orm import Mapped, column_property, mapped_column
 
 from app.models.base import Base, CreatedAtMixin, IdMixin, UpdatedAtMixin
 from app.models.enums import DocumentStatus, pg_enum
+from app.models.user import User
 
 
 class Document(IdMixin, CreatedAtMixin, UpdatedAtMixin, Base):
@@ -34,3 +35,8 @@ class Document(IdMixin, CreatedAtMixin, UpdatedAtMixin, Base):
         JSONB, server_default=text("'[]'::jsonb"), nullable=False
     )
     error: Mapped[str | None] = mapped_column(Text)
+
+    # Read-only: the uploader's name, loaded in the same SELECT (no relationship, no lazy load).
+    owner_name: Mapped[str | None] = column_property(
+        select(User.full_name).where(User.id == owner_id).correlate_except(User).scalar_subquery()
+    )

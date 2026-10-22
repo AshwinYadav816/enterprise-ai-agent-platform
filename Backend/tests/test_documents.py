@@ -66,10 +66,15 @@ async def test_upload_processing_then_ready(
     assert body["status"] == "processing" and body["visibility"] == "manager"
     assert body["filename"] == "HR Policy _v2.pdf" and body["content_type"] == "application/pdf"
     assert "storage_key" not in body
+    manager_name = users[UserRole.manager].full_name
+    assert body["owner_name"] == manager_name  # shown in the documents table
 
     # the background task has run by the time the response is handled
     detail = (await client.get(f"{API}/documents/{body['id']}", headers=h)).json()
     assert detail["status"] == "ready" and detail["chunk_count"] == 3 and detail["page_count"] == 2
+    assert detail["owner_name"] == manager_name
+    listed = (await client.get(f"{API}/documents", headers=h)).json()["items"]
+    assert [d["owner_name"] for d in listed] == [manager_name]
 
     (meta,) = fake_ai.ingested
     assert meta.doc_id == body["id"] and meta.org_id == str(org.id)

@@ -644,6 +644,8 @@ export interface components {
              * Format: uuid
              */
             owner_id: string;
+            /** Owner Name */
+            owner_name: string | null;
             /** Filename */
             filename: string;
             /** Content Type */

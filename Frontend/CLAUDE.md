@@ -72,6 +72,14 @@ npm run build        # production build; run before committing a phase
 - Don't put `aria-expanded` on ghost/outline buttons unless they control a popup: shadcn styles
   `aria-expanded:bg-accent` (it looked permanently pressed).
 
+## Documents (Phase 3)
+- File rules and role helpers: `lib/documents.ts` (`validateFile`, `visibilityOptions`,
+  `VISIBILITY_LABEL`, `ROLE_ORDER`); formatting: `lib/format.ts` (`formatBytes`, `formatRelative`).
+- `useDocuments(filters)` = infinite query + 3 s polling only while something is processing +
+  ready/failed toasts. Multipart uploads use `uploadDocument()` (authFetch + FormData), not `api`.
+- Backend `DocumentOut.owner_name` exists for the Owner column (added in this phase).
+- shadcn dialog footers use `-mx-5 -mb-5` to match our `p-5` dialog padding.
+
 ## Next.js 16 notes (verified in node_modules/next/dist/docs)
 - `cacheComponents` + `partialPrefetching` are on. Recently visited routes stay mounted (hidden with
   React `<Activity>`) instead of unmounting: effects are cleaned up when hidden, but component state

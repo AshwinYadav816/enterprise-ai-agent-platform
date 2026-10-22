@@ -2083,6 +2083,17 @@
             "format": "uuid",
             "title": "Owner Id"
           },
+          "owner_name": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Owner Name"
+          },
           "filename": {
             "type": "string",
             "title": "Filename"
@@ -2163,6 +2174,7 @@
         "required": [
           "id",
           "owner_id",
+          "owner_name",
           "filename",
           "content_type",
           "size_bytes",
