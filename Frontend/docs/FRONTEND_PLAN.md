@@ -164,7 +164,7 @@ Estimated ~7 weeks part-time. Phases 0–2 = working login + shell; 3–5 = all 
 
 **Done when:** `npm run dev` shows http://localhost:3000/styleguide in ivory/blue/coral with the right fonts; lint + typecheck pass. **Look at it yourself and adjust tokens now** — every later screen inherits them.
 
-### Phase 1 — API layer + auth state
+### Phase 1 — API layer + auth state ✅
 **Prompt:**
 > Phase 1. Read Part B rows "API client", "Token handling", "Server state". Files: `lib/api/schema.d.ts` (run `npm run gen:api`), `lib/api/client.ts`, `lib/api/auth.ts`, `lib/api/errors.ts`, `lib/api/keys.ts`, `lib/api/download.ts`, `providers/query-provider.tsx`, `providers/auth-provider.tsx`, `app/layout.tsx` (wrap providers + Toaster), tests `lib/api/__tests__/client.test.ts`.
 > - auth.ts: in-memory `getToken/setToken/clearToken`; `refreshAccessToken()` calling POST /auth/refresh with `credentials: "include"`; a shared in-flight promise so concurrent callers trigger only ONE refresh.
@@ -178,7 +178,7 @@ Estimated ~7 weeks part-time. Phases 0–2 = working login + shell; 3–5 = all 
 
 **Done when:** tests, lint, typecheck pass.
 
-### Phase 2 — Auth pages + app shell + guards
+### Phase 2 — Auth pages + app shell + guards ✅
 **Prompt:**
 > Phase 2. Read Part B "Route map", "App shell" and Part C. Files: `app/(auth)/layout.tsx`, `login/page.tsx`, `register/page.tsx`, `change-password/page.tsx`, `app/(app)/layout.tsx`, `components/layout/sidebar.tsx`, `nav-items.ts`, `user-menu.tsx`, `mobile-topbar.tsx`, `components/layout/auth-guard.tsx`, `app/page.tsx`, placeholder `page.tsx` for every (app) route showing the page title, `components/common/page-header.tsx`, `empty-state.tsx`, `error-state.tsx`.
 > - (auth) layout: split screen on desktop — left: ivory panel with wordmark, serif headline about the product and three short feature lines; right: form card. Single column on mobile.
@@ -189,7 +189,7 @@ Estimated ~7 weeks part-time. Phases 0–2 = working login + shell; 3–5 = all 
 
 **Done when:** you can register, log in, see the shell, navigate all placeholder pages, log out, and refreshing the browser keeps you logged in. A seeded employee does not see Admin and is redirected from /admin.
 
-### Phase 3 — Documents (knowledge base)
+### Phase 3 — Documents (knowledge base) ✅
 **Prompt:**
 > Phase 3. Files: `app/(app)/documents/page.tsx`, `components/documents/upload-dialog.tsx`, `dropzone.tsx`, `documents-table.tsx`, `status-badge.tsx`, `visibility-select.tsx`, `lib/hooks/use-documents.ts`, `lib/format.ts` (bytes, dates, relative time), tests `components/documents/__tests__/dropzone.test.tsx`.
 > - Upload dialog: drag-and-drop + browse, multiple files; client-side check of extension (pdf, docx, pptx, xlsx) and size (25 MB) with clear per-file errors; visibility select (Everyone / Managers & admins / Admins only → employee/manager/admin; options above the user's own role are hidden); uploads run sequentially with per-file progress state (pending, uploading, done, error).
@@ -200,7 +200,7 @@ Estimated ~7 weeks part-time. Phases 0–2 = working login + shell; 3–5 = all 
 
 **Done when:** upload a PDF → see processing → ready (fake AI is instant; try `AI_MODE=real` once too), download works, delete works, employee can't see a manager-only doc.
 
-### Phase 4 — Chat with streaming — use plan mode
+### Phase 4 — Chat with streaming — use plan mode ✅
 **Prompt:**
 > Phase 4. Enter plan mode first and show me the component tree and the streaming state design before writing code. Read Part B "Streaming chat", "Markdown" and Part C "Signature components". Files: `app/(app)/chat/page.tsx`, `chat/[id]/page.tsx`, `components/chat/conversation-list.tsx`, `message-list.tsx`, `message.tsx`, `markdown.tsx`, `citation.tsx`, `sources-footer.tsx`, `agent-status.tsx`, `composer.tsx`, `doc-picker.tsx`, `agent-select.tsx`, `result-card.tsx`, `lib/api/sse.ts`, `lib/hooks/use-chat-stream.ts`, `lib/hooks/use-conversations.ts`, tests for `sse.ts` and `markdown.tsx`.
 > - sse.ts: `streamMessage(conversationId, body, handlers, signal)` using fetchEventSource: POST, JSON body, auth header, `openWhenHidden: true`; `onopen` checks status (401 → refresh once then retry the whole call ONCE; other non-200 → throw ApiError); `onerror` rethrows (no auto retry); dispatches by event name: status, agent, token, sources, result, error, done.
@@ -217,7 +217,7 @@ Estimated ~7 weeks part-time. Phases 0–2 = working login + shell; 3–5 = all 
 
 **Done when:** with fake AI tokens stream in live with the coral cursor; Stop works; reloading shows the saved conversation; with real AI an answer shows citations whose popovers open the right document. Check on a phone width too.
 
-### Phase 5 — Tools: meetings, reports, email, insights, history
+### Phase 5 — Tools: meetings, reports, email, insights, history ✅
 **Prompt:**
 > Phase 5. Files: `app/(app)/meetings/page.tsx`, `reports/page.tsx`, `email/page.tsx`, `history/page.tsx`, `history/[id]/page.tsx`, `components/tools/meeting-form.tsx`, `report-form.tsx`, `email-form.tsx`, `generation-view.tsx`, `generation-list.tsx`, reuse `components/chat/result-card.tsx` pieces, `lib/hooks/use-tools.ts`; enable "Get insights" in the documents actions menu. Tests: `email-form.test.tsx`.
 > - Layout for each tool page: two columns on desktop (form left ~40 %, result right), stacked on mobile. Result area: empty state before running; while running a calm skeleton with "Working on it… this can take up to a minute"; then the result view with actions Copy (markdown), Download PDF (`downloadFile`), Open in History.
@@ -231,7 +231,7 @@ Estimated ~7 weeks part-time. Phases 0–2 = working login + shell; 3–5 = all 
 
 **Done when:** each tool produces a result and a PDF that downloads and opens; history lists everything you generated.
 
-### Phase 6 — Admin
+### Phase 6 — Admin ✅
 **Prompt:**
 > Phase 6. Files: `app/(app)/admin/page.tsx`, `admin/users/page.tsx`, `admin/activity/page.tsx`, `components/admin/kpi-tile.tsx`, `tokens-chart.tsx`, `agent-usage-chart.tsx`, `docs-status-chart.tsx`, `users-table.tsx`, `create-user-dialog.tsx`, `activity-table.tsx`, `lib/hooks/use-admin.ts`. All wrapped in auth-guard `adminOnly`.
 > - Dashboard (one GET /admin/stats call): KPI row — Users (with active last 7 days), Documents (with storage formatted), Conversations, Messages, Tokens last 30 days. Charts using the Part C chart palette and the shadcn chart wrapper: tokens per day (line/area, blue; today's point highlighted coral), usage per agent (horizontal bar), documents by status (bar with status colours), generations by kind. Each chart has a title, a one-line takeaway in muted text, and an accessible table fallback (visually hidden).
@@ -240,7 +240,7 @@ Estimated ~7 weeks part-time. Phases 0–2 = working login + shell; 3–5 = all 
 
 **Done when:** an admin sees real numbers that change after using chat/tools, can create a user and log in as them.
 
-### Phase 7 — Settings, polish, accessibility, landing
+### Phase 7 — Settings, polish, accessibility, landing ✅
 **Prompt:**
 > Phase 7. Polish only — no new features beyond these. Files: `app/(app)/settings/page.tsx`, `app/page.tsx`, `components/common/*` as needed, `app/not-found.tsx`, `app/(app)/error.tsx`, `app/(app)/loading.tsx`.
 > - Settings: profile form (full name, email read-only, role badge), change password form.
@@ -249,7 +249,7 @@ Estimated ~7 weeks part-time. Phases 0–2 = working login + shell; 3–5 = all 
 
 **Done when:** you can demo every screen on a laptop and a phone without anything looking broken; Lighthouse accessibility score ≥ 95 on login, chat and documents.
 
-### Phase 8 — E2E tests, Docker, handover
+### Phase 8 — E2E tests, Docker, handover ✅
 **Prompt:**
 > Phase 8. Files: `playwright.config.ts`, `e2e/*.spec.ts`, `Dockerfile`, `.dockerignore`, `next.config.*`, `README.md`. (1) Playwright (baseURL localhost:3000, backend must be running with AI_MODE=fake; use seed users from env vars): login + forced password change; upload a document and wait for ready; chat streams a reply and persists after reload; admin creates a user. (2) `next.config`: `output: "standalone"`. (3) Dockerfile: multi-stage on node LTS alpine, `npm ci`, build with `NEXT_PUBLIC_API_URL` as a build arg (empty = same origin), run as non-root with `node server.js`. (4) README: run locally, env vars, scripts, regenerating API types, notes for Member 4 — Nginx serves `/` → frontend and `/api` → backend on the same domain, `proxy_buffering off` for `/api/v1/conversations/` (SSE).
 

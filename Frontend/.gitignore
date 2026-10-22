@@ -43,3 +43,9 @@ next-env.d.ts
 
 # the repo-root .gitignore (Python template) ignores every lib/ folder; ours is source code
 !/src/lib/
+
+# playwright
+/test-results/
+/playwright-report/
+/blob-report/
+/playwright/.cache/

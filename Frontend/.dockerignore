@@ -1,0 +1,10 @@
+# Whitelist: only what the build needs (never .env*, node_modules, .next or test output).
+*
+!package.json
+!package-lock.json
+!next.config.ts
+!tsconfig.json
+!src
+!public
+src/**/__tests__
+src/test

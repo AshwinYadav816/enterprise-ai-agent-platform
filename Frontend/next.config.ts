@@ -3,6 +3,8 @@ import path from "node:path";
 import type { NextConfig } from "next";
 
 const nextConfig: NextConfig = {
+  // Docker: .next/standalone holds a minimal server.js + only the node_modules it needs.
+  output: "standalone",
   cacheComponents: true,
   partialPrefetching: true,
   experimental: {

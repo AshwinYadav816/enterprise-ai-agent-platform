@@ -128,6 +128,16 @@ npm run build        # production build; run before committing a phase
   Signed-in pages: run Lighthouse with `--port=<cdp port>` against an already logged-in Chrome
   (a closed profile loses the session).
 
+## E2E, Docker, deploy (Phase 8)
+- `npx playwright test` (e2e/, backend in AI_MODE=fake, installed Chrome via `channel: "chrome"`).
+  Never reuse storageState between tests: the refresh cookie rotates and a replayed cookie makes
+  the backend revoke all sessions. Sign in per test; clean up created users/uploads/chats.
+- `output: "standalone"`; `Dockerfile` (node:22-alpine, non-root, `node server.js`);
+  `NEXT_PUBLIC_API_URL` is a BUILD arg (empty = same origin behind Nginx).
+- Nginx: the SSE location must be a regex (`location ~ ^/api/v1/conversations/`). A prefix location
+  ending in "/" 301-redirects `GET /api/v1/conversations` and breaks the conversation list.
+  The README's config was verified with the full Playwright suite through Docker + Nginx.
+
 ## Next.js 16 notes (verified in node_modules/next/dist/docs)
 - `cacheComponents` + `partialPrefetching` are on. Recently visited routes stay mounted (hidden with
   React `<Activity>`) instead of unmounting: effects are cleaned up when hidden, but component state
