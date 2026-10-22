@@ -4,7 +4,7 @@ from functools import lru_cache
 from pathlib import Path
 from typing import Literal
 
-from pydantic import SecretStr
+from pydantic import Field, SecretStr
 from pydantic_settings import BaseSettings, SettingsConfigDict
 
 
@@ -22,12 +22,12 @@ class Settings(BaseSettings):
     redis_url: str = "redis://127.0.0.1:6379/0"
 
     # Auth
-    jwt_secret: SecretStr
+    jwt_secret: SecretStr = Field(min_length=32)  # signs every token: use a long random value
     access_token_minutes: int = 15
     refresh_token_days: int = 7
 
     # HTTP
-    cors_origins: list[str] = ["http://localhost:5173", "http://127.0.0.1:5173"]
+    cors_origins: list[str] = ["http://localhost:3000", "http://127.0.0.1:3000"]
 
     # File storage
     storage_backend: Literal["local", "s3"] = "local"

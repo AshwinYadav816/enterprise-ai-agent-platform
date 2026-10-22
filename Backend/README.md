@@ -13,7 +13,8 @@ Prerequisites: Docker Desktop running and [uv](https://docs.astral.sh/uv/) insta
 
 ```bash
 cd Backend
-cp .env.example .env            # then set JWT_SECRET and MISTRAL_API_KEY (see below)
+cp .env.example .env            # PowerShell: copy .env.example .env. Then set JWT_SECRET and MISTRAL_API_KEY
+uv run python -c "import secrets; print(secrets.token_urlsafe(48))"   # a JWT_SECRET (32+ chars required)
 docker compose up -d            # Postgres (eap + eap_test), Redis, Qdrant
 uv sync                         # dependencies, incl. ../ai as an editable package
 uv run alembic upgrade head     # create/upgrade the schema
@@ -25,8 +26,24 @@ Use `127.0.0.1`, not `localhost`, on Windows (avoids a ~2 s IPv6 fallback per re
 With `AI_MODE=fake` (the default) no Mistral key is needed; answers are canned but every
 endpoint works, which is enough for frontend work. Set `AI_MODE=real` for real answers.
 
-Only one Qdrant may run on port 6333: if the AI module's own stack is up, stop it first
-(`docker compose down` in `../ai`).
+Only one Qdrant may run on port 6333: this stack starts it (the same definition as `../ai`). If the
+AI module's own stack is up, stop it first (`docker compose stop` in `../ai`).
+
+**Every day:** start Docker Desktop, then `docker compose up -d` and the `uvicorn` line above.
+After pulling teammates' changes, also run `uv sync` and `uv run alembic upgrade head`.
+
+**Check it:** `http://127.0.0.1:8000/api/v1/ready` reports `database` and `redis` (plus `ai_config`
+and `qdrant` with `AI_MODE=real`); `/docs` → `POST /auth/login` → **Authorize**. With the real AI,
+upload a PDF, poll `GET /documents/{id}` until `ready`, then ask about it in a conversation; the
+vectors are in collection `docs_mistral_embed_1024` (Qdrant dashboard: http://127.0.0.1:6333/dashboard).
+
+| problem | fix |
+|---|---|
+| `port is already allocated` (5432, 6379, 6333) | Another Postgres/Redis/Qdrant is running (often `../ai`'s Qdrant). Stop it, or change the host port in `docker-compose.yml` and in `.env` |
+| `password authentication failed` / `database "eap_test" does not exist` | The database volume predates the current settings: `docker compose down -v` then `up -d` (**deletes local data**), then migrate and seed again |
+| API refuses to start: `jwt_secret` | `.env` missing, or `JWT_SECRET` shorter than 32 characters |
+| `ModuleNotFoundError: eap_ai` | `uv sync` in `Backend/` (installs `../ai` as an editable package) |
+| Uploads stay `failed` with a connection error, `/ready` shows `qdrant: unavailable` | Qdrant is not running: `docker compose up -d` |
 
 **Demo users** (`scripts/seed_demo.py`, safe to re-run; resets the passwords):
 
@@ -82,14 +99,14 @@ AI module** (`eap_ai` reads `.env` from the working directory), so it must conta
 
 | variable | default | meaning |
 |---|---|---|
-| `JWT_SECRET` | **required** | HMAC key for access tokens. Long random string: `uv run python -c "import secrets; print(secrets.token_urlsafe(48))"` |
+| `JWT_SECRET` | **required** | HMAC key for access tokens, at least 32 characters: `uv run python -c "import secrets; print(secrets.token_urlsafe(48))"` |
 | `ENV` | `dev` | `dev` / `test` / `prod` (`prod` makes the refresh cookie `Secure` → HTTPS required) |
 | `LOG_LEVEL` | `INFO` | JSON logs on stdout, each line with `request_id` |
 | `DATABASE_URL` | `postgresql+asyncpg://eap:eap@127.0.0.1:5432/eap` | app database |
 | `TEST_DATABASE_URL` | `…/eap_test` | tests only; name must end in `_test` |
 | `REDIS_URL` | `redis://127.0.0.1:6379/0` | rate limits, stats cache (+ the AI module's embedding cache) |
 | `ACCESS_TOKEN_MINUTES` / `REFRESH_TOKEN_DAYS` | `15` / `7` | token lifetimes |
-| `CORS_ORIGINS` | `["http://localhost:5173","http://127.0.0.1:5173"]` | JSON list of frontend origins (credentials allowed) |
+| `CORS_ORIGINS` | `["http://localhost:3000","http://127.0.0.1:3000"]` | JSON list of frontend origins (credentials allowed) |
 | `STORAGE_BACKEND` | `local` | `local` or `s3` |
 | `STORAGE_DIR` | `data/uploads` | local uploads (mount a volume in Docker) |
 | `S3_BUCKET` / `S3_REGION` | — | when `STORAGE_BACKEND=s3` (AWS credentials from the usual AWS env/role) |

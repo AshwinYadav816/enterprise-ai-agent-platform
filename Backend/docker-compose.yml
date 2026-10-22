@@ -52,7 +52,7 @@ services:
       DATABASE_URL: postgresql+asyncpg://${POSTGRES_USER:-eap}:${POSTGRES_PASSWORD:-eap}@postgres:5432/eap
       REDIS_URL: redis://redis:6379/0
       QDRANT_URL: ${QDRANT_URL_IN_DOCKER:-http://qdrant:6333}
-      JWT_SECRET: ${JWT_SECRET:?Set JWT_SECRET in Backend/.env}
+      JWT_SECRET: ${JWT_SECRET:-} # required (32+ chars) in Backend/.env; the API refuses to start without it
       AI_MODE: ${AI_MODE:-fake}
       MISTRAL_API_KEY: ${MISTRAL_API_KEY:-}
       FAST_MODEL: ${FAST_MODEL:-ministral-8b-latest}

@@ -9,7 +9,8 @@ import sys
 from pathlib import Path
 
 sys.path.insert(0, str(Path(__file__).resolve().parents[1]))
-os.environ.setdefault("JWT_SECRET", "openapi-export-only")  # required setting, unused here
+# Required setting (32+ chars), unused when exporting the schema
+os.environ.setdefault("JWT_SECRET", "openapi-export-only-not-a-real-secret-0123456789")
 
 from app.main import create_app  # noqa: E402
 

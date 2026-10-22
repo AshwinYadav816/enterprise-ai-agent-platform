@@ -23,7 +23,7 @@ from app.services.ai_gateway import FakeAIGateway, get_ai
 from app.services.stats import get_stats_cache
 from app.services.storage import LocalStorage, get_storage
 
-TEST_ORIGIN = "http://localhost:5173"
+TEST_ORIGIN = "http://localhost:3000"
 BACKEND_DIR = Path(__file__).resolve().parents[1]
 
 
