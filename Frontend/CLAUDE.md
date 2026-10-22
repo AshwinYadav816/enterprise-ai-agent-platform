@@ -108,6 +108,15 @@ npm run build        # production build; run before committing a phase
 - shadcn `TabsList` forces `h-8` via `group-data-horizontal/tabs:h-8`; override with
   `group-data-horizontal/tabs:h-auto` for wrapping/grid tab lists.
 
+## Admin (Phase 6)
+- `lib/hooks/use-admin.ts`: stats (backend caches 60 s; page shows "Updated …" + Refresh), users
+  (search/role, load more), create (temporary password shown ONCE, kept only in dialog state),
+  update role / is_active (guard errors like last_admin / cannot_modify_self toast globally),
+  activity (+ `actionLabel` / `activityTarget` for readable rows).
+- Charts: shadcn `ChartContainer` + recharts 3, colours only via `var(--chart-n)` / status tokens,
+  wrapped in `ChartCard` (title, one-line takeaway, visually hidden data table). The only coral is
+  today's point on the tokens chart.
+
 ## Next.js 16 notes (verified in node_modules/next/dist/docs)
 - `cacheComponents` + `partialPrefetching` are on. Recently visited routes stay mounted (hidden with
   React `<Activity>`) instead of unmounting: effects are cleaned up when hidden, but component state
