@@ -10,7 +10,7 @@ Next.js 16 (App Router, `src/`, TypeScript strict) · Tailwind CSS v4 · shadcn/
 ```bash
 npm run dev          # http://localhost:3000 (backend must run on http://localhost:8000)
 npm run lint         # eslint
-npm run typecheck    # tsc --noEmit
+npm run typecheck    # next typegen (route types) + tsc --noEmit
 npx vitest run       # unit tests (npm test = watch mode)
 npm run gen:api      # regenerate src/lib/api/schema.d.ts from ../Backend/openapi.json
 npm run format       # prettier (+ tailwind class sorting)
@@ -57,12 +57,30 @@ npm run build        # production build; run before committing a phase
   `meta: { silentError: true }` when the form shows the error itself. Queries retry once, never on 4xx.
 - Downloads: `downloadFile("/documents/{id}/download", "fallback.pdf")`.
 
+## Shell, guards, forms (Phase 2)
+- Route groups: `(auth)` = login/register/change-password (split-screen layout), `(app)` = everything
+  behind `<AuthGuard>` + `AppShell` (sidebar ≥ lg, top bar + Sheet below). `/admin/*` has its own
+  `AuthGuard adminOnly`. Guards use `useSearchParams`, so they wrap themselves in `<Suspense>`.
+- Redirect rules live in `lib/redirects.ts` (`safeNext` blocks open redirects; `postLoginPath`
+  handles must_change_password). Login/register don't navigate themselves: `GuestGuard` does.
+- New nav entries go in `components/layout/nav-items.ts`.
+- Forms: react-hook-form + zod + `TextField`/`PasswordField`/`FormAlert` and
+  `handleFormError(error, setError, fields)` from `components/auth/form-fields.tsx` (422 details →
+  fields, everything else → `errors.root.server`). Schemas mirror backend limits.
+- Pages: server `page.tsx` exporting `metadata` + `PageHeader`; interactive parts are client
+  components. `EmptyState` / `ErrorState` for empty and failed data.
+- Don't put `aria-expanded` on ghost/outline buttons unless they control a popup: shadcn styles
+  `aria-expanded:bg-accent` (it looked permanently pressed).
+
 ## Next.js 16 notes (verified in node_modules/next/dist/docs)
 - `cacheComponents` + `partialPrefetching` are on. Recently visited routes stay mounted (hidden with
   React `<Activity>`) instead of unmounting: effects are cleaned up when hidden, but component state
   survives. Matters for chat streams, dialogs and polling (see docs/…/preserving-ui-state).
 - Pages/layouts get typed props via the global `PageProps<"/route">` / `LayoutProps<"/route">`.
 - No Next middleware/proxy for auth: guards are client-side (backend enforces auth anyway).
+- `experimental.instantInsights.validationLevel = "manual-warning"`: automatic instant-navigation
+  validation can't see pages behind the client guard and flagged every page as "dropped".
+- `LayoutProps`/`PageProps` come from `next typegen` (.next/types); `npm run typecheck` runs it.
 
 ## Gotchas
 - `cn` comes from the `cn` package (shadcn's drop-in for clsx + tailwind-merge); `@/lib/utils`

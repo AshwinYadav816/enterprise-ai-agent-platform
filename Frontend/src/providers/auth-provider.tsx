@@ -26,6 +26,8 @@ type AuthContextValue = {
   login: (email: string, password: string) => Promise<TokenResponse>;
   register: (input: RegisterInput) => Promise<TokenResponse>;
   logout: () => Promise<void>;
+  /** Signs out every other session; this device gets a fresh session (must_change_password off). */
+  changePassword: (currentPassword: string, newPassword: string) => Promise<TokenResponse>;
   /** Re-read the current user (after a profile or password change). */
   refreshUser: () => Promise<User>;
 };
@@ -101,6 +103,16 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
     becomeAnonymous();
   }, [becomeAnonymous]);
 
+  const changePassword = useCallback(async (currentPassword: string, newPassword: string) => {
+    const session = unwrap(
+      await api.POST("/api/v1/users/me/password", {
+        body: { current_password: currentPassword, new_password: newPassword },
+      }),
+    );
+    applySession(session);
+    return session;
+  }, []);
+
   const refreshUser = useCallback(async () => {
     const me = unwrap(await api.GET("/api/v1/users/me"));
     setUser(me);
@@ -108,8 +120,8 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
   }, []);
 
   const value = useMemo(
-    () => ({ user, status, login, register, logout, refreshUser }),
-    [user, status, login, register, logout, refreshUser],
+    () => ({ user, status, login, register, logout, changePassword, refreshUser }),
+    [user, status, login, register, logout, changePassword, refreshUser],
   );
 
   return <AuthContext value={value}>{children}</AuthContext>;
