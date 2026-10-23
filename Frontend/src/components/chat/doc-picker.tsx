@@ -12,8 +12,9 @@ import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover
 import { api } from "@/lib/api/client";
 import { unwrap } from "@/lib/api/errors";
 import { keys } from "@/lib/api/keys";
+import type { DraftDoc } from "@/lib/chat/draft";
 
-export type PickedDoc = { id: string; filename: string };
+export type PickedDoc = DraftDoc;
 
 /** Restrict the answer to some documents. Only READY ones are offered (the backend 409s others). */
 export function DocPicker({

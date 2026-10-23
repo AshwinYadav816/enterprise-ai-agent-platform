@@ -50,7 +50,7 @@ async def answer_stream(
         HumanMessage(content=answer_user_message(standalone, sources)),
     ]
     parts: list[str] = []
-    async for chunk in llm.get_chat_model("smart", streaming=True).astream(messages):
+    async for chunk in llm.get_chat_model("answer", streaming=True).astream(messages):
         text = chunk.content if isinstance(chunk.content, str) else ""
         if text:
             parts.append(text)

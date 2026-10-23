@@ -90,7 +90,9 @@ async def models(monkeypatch: pytest.MonkeyPatch) -> AsyncIterator[Models]:
     llm.clear_caches()
     monkeypatch.setattr(llm, "get_embedder", lambda: m.embedder)
     monkeypatch.setattr(
-        llm, "get_chat_model", lambda tier, streaming=False: m.fast if tier == "fast" else m.smart
+        llm,
+        "get_chat_model",
+        lambda task, streaming=False: m.fast if llm.tier_of(task) == "fast" else m.smart,
     )
     await qdrant.close_client()
     yield m

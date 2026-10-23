@@ -1,10 +1,11 @@
 "use client";
 
 import { usePathname } from "next/navigation";
-import { useState } from "react";
 
 import { MobileTopbar } from "@/components/layout/mobile-topbar";
 import { Sidebar } from "@/components/layout/sidebar";
+import { useStoredState } from "@/lib/hooks/use-stored-state";
+import { asBoolean } from "@/lib/storage";
 import { cn } from "@/lib/utils";
 
 /** Pages that manage their own height and scrolling (chat: composer pinned to the bottom). */
@@ -12,7 +13,7 @@ const FULL_BLEED = /^\/chat(\/|$)/;
 
 /** Sidebar (desktop) or top bar + sheet (mobile) around the page content. */
 export function AppShell({ children }: { children: React.ReactNode }) {
-  const [collapsed, setCollapsed] = useState(false);
+  const [collapsed, setCollapsed] = useStoredState("pref", "sidebar-collapsed", false, asBoolean);
   const fullBleed = FULL_BLEED.test(usePathname());
 
   return (

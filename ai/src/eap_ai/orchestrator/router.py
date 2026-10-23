@@ -79,7 +79,7 @@ async def make_plan(req: AgentRequest) -> Plan:
         step = Step(agent=req.force_agent, instruction=req.query)
         return Plan(steps=[step], reason=f"forced: {req.force_agent.value}")
     try:
-        plan = await ask("fast", Plan, ROUTER_SYSTEM, _router_message(req))
+        plan = await ask("router", Plan, ROUTER_SYSTEM, _router_message(req))
     except Exception:
         log.exception("Router failed; falling back to research")
         return _fallback(req)

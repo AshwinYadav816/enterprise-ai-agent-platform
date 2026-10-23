@@ -138,6 +138,22 @@ npm run build        # production build; run before committing a phase
   ending in "/" 301-redirects `GET /api/v1/conversations` and breaks the conversation list.
   The README's config was verified with the full Playwright suite through Docker + Nginx.
 
+## State that survives a refresh
+- **Page filters / which result is shown → the URL** (`useUrlState`, `useUrlSearch` in
+  `lib/hooks/use-url-state.ts`): Documents `?q&status`, Users `?q&role`, Activity `?action&user`,
+  History `?kind`, tools `?result=<generation id>` (reloaded from History). Defaults stay out of
+  the URL; `allowed` lists reject hand-edited values. The auth guard keeps the query on login.
+- **Unsent work → drafts in localStorage** (`lib/storage.ts`, `useStoredState` /
+  `useRestoredDraft` + `useSaveDraft`), keyed `eap:draft:<userId>:<name>`: chat composer per
+  conversation (`chat:<id>`, `chat:new`; text, documents, agent, transcript), `chat:search`,
+  `tool:email|report|meeting`. Cleared by **Log out** only (an expired session keeps them).
+  `carryNewChatDraft` moves a new chat's documents/agent to its conversation before
+  `/chat/[id]` mounts. Always validate stored values with a parser (`asRecord`, `asOneOf`…).
+- **UI preferences** (`eap:pref:…`): collapsed sidebar, last upload visibility. Kept on log out.
+- Not restorable by design: a chosen File (browsers forbid it), an answer that was still
+  streaming (the backend saves it as "interrupted" with Retry), open dialogs, "Load more" pages.
+- Tokens are still never stored (Auth rule above): drafts hold only what the user typed or picked.
+
 ## Next.js 16 notes (verified in node_modules/next/dist/docs)
 - `cacheComponents` + `partialPrefetching` are on. Recently visited routes stay mounted (hidden with
   React `<Activity>`) instead of unmounting: effects are cleaned up when hidden, but component state

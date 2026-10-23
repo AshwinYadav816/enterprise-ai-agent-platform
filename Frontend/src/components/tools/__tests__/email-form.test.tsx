@@ -1,8 +1,12 @@
-import { render, screen, waitFor } from "@testing-library/react";
+import { cleanup, render, screen, waitFor } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
-import { describe, expect, it, vi } from "vitest";
+import { beforeEach, describe, expect, it, vi } from "vitest";
 
 import { EmailForm } from "@/components/tools/email-form";
+
+vi.mock("@/providers/auth-provider", () => ({ useAuth: () => ({ user: { id: "u1" } }) }));
+
+beforeEach(() => localStorage.clear());
 
 function setup() {
   const onSubmit = vi.fn();
@@ -70,5 +74,16 @@ describe("EmailForm", () => {
   it("disables the submit while a request runs", () => {
     render(<EmailForm onSubmit={vi.fn()} pending />);
     expect(screen.getByRole("button", { name: /Writing/ })).toBeDisabled();
+  });
+
+  it("keeps the draft after a refresh", async () => {
+    const { user, pickTask } = setup();
+    await pickTask("Rewrite");
+    await user.type(screen.getByRole("textbox", { name: "Your draft" }), "hi team");
+    cleanup(); // the page goes away…
+
+    render(<EmailForm onSubmit={vi.fn()} pending={false} />); // …and comes back
+    expect(screen.getByRole("tab", { name: "Rewrite" })).toHaveAttribute("aria-selected", "true");
+    expect(screen.getByRole("textbox", { name: "Your draft" })).toHaveValue("hi team");
   });
 });

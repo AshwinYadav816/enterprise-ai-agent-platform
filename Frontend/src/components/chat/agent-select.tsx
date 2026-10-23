@@ -9,9 +9,10 @@ import {
   SelectTrigger,
   SelectValue,
 } from "@/components/ui/select";
-import { agentLabel, FORCEABLE_AGENTS, type AgentName } from "@/lib/chat/types";
+import type { AgentChoice } from "@/lib/chat/draft";
+import { agentLabel, FORCEABLE_AGENTS } from "@/lib/chat/types";
 
-export type AgentChoice = AgentName | "auto";
+export type { AgentChoice };
 
 /** Auto lets the router plan; otherwise one agent handles the message. */
 export function AgentSelect({

@@ -96,8 +96,11 @@ Set as environment variables or in `.env`. Only `MISTRAL_API_KEY` is required.
 | variable | default | meaning |
 |---|---|---|
 | `MISTRAL_API_KEY` | (required) | Mistral API key (only LLM and embedding provider) |
-| `FAST_MODEL` | `ministral-8b-latest` | routing, classification, map steps, judge |
-| `SMART_MODEL` | `ministral-14b-latest` | answers, emails, reports, summaries |
+| `FAST_MODEL` | `ministral-8b-latest` | fast tasks: `router`, `rewrite`, `classify`, `summary`, `map`, `judge` |
+| `SMART_MODEL` | `ministral-14b-latest` | smart tasks: `answer`, `chat`, `synthesis`, `report`, `meeting`, `email`, `document` |
+| `TASK_MODELS` | `{}` | per-task override as JSON, e.g. `{"email": "ministral-8b-latest"}`; unknown task names are rejected at startup |
+| `FAST_FALLBACK_MODELS` | `["ministral-3b-latest"]` | tried in order when a fast task's model is busy (429), down (5xx) or times out |
+| `SMART_FALLBACK_MODELS` | `["ministral-8b-latest"]` | same for smart tasks; `[]` turns fallback off |
 | `EMBEDDING_MODEL` | `mistral-embed` | the collection name includes model and dimension |
 | `FAST_REASONING_EFFORT` | `none` | applied only if the installed client supports it |
 | `LLM_TIMEOUT` | `60` | seconds per HTTP call |
@@ -116,6 +119,25 @@ Set as environment variables or in `.env`. Only `MISTRAL_API_KEY` is required.
 | `MMR_LAMBDA` | `0.7` | relevance vs. diversity when picking sources |
 | `MAX_CONTEXT_TOKENS` | `6000` | token budget for sources in the prompt |
 | `LONG_INPUT_TOKENS` / `MAP_CHUNK_TOKENS` | `6000` / `3000` | transcripts and documents above this use map-reduce |
+
+### Models per task and fallbacks
+
+Every LLM call names its task (`config.TASK_TIERS`); the task picks its model: `TASK_MODELS`
+override, else its tier's `FAST_MODEL` / `SMART_MODEL`. When that model answers 429 (rate limit or
+"no capacity", Mistral code 3505) the same request goes straight to the next fallback; 5xx and
+timeouts are retried `LLM_MAX_RETRIES` times first. A stream switches only before its first token,
+so users never see repeated text. Every switch is logged (`<model> unavailable (…); using <model>`)
+and token usage is counted for the model that actually answered (admin dashboard).
+
+- Choose fallbacks from models your plan really serves: on the current plan `open-mistral-nemo` is
+  served by `ministral-8b`, and `mistral-small` / `medium` / `large` are blocked.
+- Smart tasks don't fall back to `ministral-3b` by default: a weaker model writing grounded answers
+  is more likely to add unsupported content, and "busy, try again" is the safer failure.
+- Embeddings have **no fallback**: stored vectors only match queries embedded by the same model, so
+  a second embedding model would mean indexing every document twice. If `mistral-embed` is down,
+  chat says "The AI service is busy right now" and uploads retry with backoff.
+- Changing a task's model: run `eval/run_eval.py` before and after (README there) and keep the
+  change only if the scores hold.
 
 ## Docker
 

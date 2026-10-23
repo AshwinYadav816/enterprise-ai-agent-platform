@@ -1,7 +1,7 @@
 "use client";
 
 import { Loader2, Search, UserCheck, UserX, Users } from "lucide-react";
-import { useEffect, useState } from "react";
+import { useState } from "react";
 
 import { CreateUserDialog } from "@/components/admin/create-user-dialog";
 import { EmptyState } from "@/components/common/empty-state";
@@ -44,22 +44,17 @@ import {
   type AdminUser,
   type UserRole,
 } from "@/lib/hooks/use-admin";
+import { useUrlSearch, useUrlState } from "@/lib/hooks/use-url-state";
 import { useAuth } from "@/providers/auth-provider";
 
 const ROLES = Object.keys(ROLE_LABEL) as UserRole[];
 
 export function UsersView() {
   const { user: me } = useAuth();
-  const [searchText, setSearchText] = useState("");
-  const [search, setSearch] = useState("");
-  const [role, setRole] = useState<UserRole | "all">("all");
+  const { text: searchText, setText: setSearchText, search } = useUrlSearch();
+  const [role, setRole] = useUrlState<UserRole | "all">("role", "all", ["all", ...ROLES]);
   const [toToggle, setToToggle] = useState<AdminUser | null>(null);
   const update = useUpdateUser();
-
-  useEffect(() => {
-    const timer = setTimeout(() => setSearch(searchText.trim()), 300);
-    return () => clearTimeout(timer);
-  }, [searchText]);
 
   const query = useAdminUsers({ search, role: role === "all" ? undefined : role });
 

@@ -1,7 +1,7 @@
 "use client";
 
 import { Activity, Loader2 } from "lucide-react";
-import { useMemo, useState } from "react";
+import { useMemo } from "react";
 
 import { EmptyState } from "@/components/common/empty-state";
 import { ErrorState } from "@/components/common/error-state";
@@ -31,6 +31,7 @@ import {
   useActivity,
   useAdminUsers,
 } from "@/lib/hooks/use-admin";
+import { useUrlState } from "@/lib/hooks/use-url-state";
 import { cn } from "@/lib/utils";
 
 const ALL = "all";
@@ -38,8 +39,8 @@ const ALL = "all";
 const NOTABLE = new Set(["auth.login_failed", "auth.refresh_token_reuse", "user.deactivated"]);
 
 export function ActivityView() {
-  const [action, setAction] = useState(ALL);
-  const [userId, setUserId] = useState(ALL);
+  const [action, setAction] = useUrlState("action", ALL);
+  const [userId, setUserId] = useUrlState("user", ALL);
   const query = useActivity({
     action: action === ALL ? undefined : action,
     userId: userId === ALL ? undefined : userId,

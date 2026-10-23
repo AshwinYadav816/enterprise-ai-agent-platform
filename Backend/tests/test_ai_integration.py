@@ -86,7 +86,9 @@ async def real_ai(app: FastAPI, monkeypatch: pytest.MonkeyPatch) -> AsyncIterato
     monkeypatch.setattr(
         ai_llm,
         "get_chat_model",
-        lambda tier, streaming=False: models.fast if tier == "fast" else models.smart,
+        lambda task, streaming=False: (
+            models.fast if ai_llm.tier_of(task) == "fast" else models.smart
+        ),
     )
     app.dependency_overrides[get_ai] = lambda: RealAIGateway()
     yield models

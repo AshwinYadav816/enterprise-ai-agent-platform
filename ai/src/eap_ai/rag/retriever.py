@@ -74,7 +74,7 @@ async def rewrite_query(query: str, history: Sequence[ChatMessage]) -> str:
         return query
     recent = history[-REWRITE_HISTORY_MESSAGES:]
     history_text = "\n".join(f"{m.role}: {m.content}" for m in recent)
-    model = llm.get_chat_model("fast").with_structured_output(StandaloneQuestion)
+    model = llm.get_chat_model("rewrite").with_structured_output(StandaloneQuestion)
     result = await model.ainvoke(
         [
             SystemMessage(content=REWRITE_SYSTEM),

@@ -39,7 +39,7 @@ async def run(ctx: AgentContext) -> AsyncIterator[Event]:
     messages.append(HumanMessage(content=query))
 
     parts: list[str] = []
-    async for chunk in llm.get_chat_model("smart", streaming=True).astream(messages):
+    async for chunk in llm.get_chat_model("chat", streaming=True).astream(messages):
         if isinstance(chunk.content, str) and chunk.content:
             parts.append(chunk.content)
             yield Event(type="token", data={"text": chunk.content})

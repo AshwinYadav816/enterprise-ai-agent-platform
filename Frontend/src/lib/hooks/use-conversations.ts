@@ -6,7 +6,9 @@ import { useMemo } from "react";
 import { api } from "@/lib/api/client";
 import { unwrap } from "@/lib/api/errors";
 import { keys } from "@/lib/api/keys";
+import { dropChatDraft } from "@/lib/chat/draft";
 import type { Conversation, Message } from "@/lib/chat/types";
+import { useAuth } from "@/providers/auth-provider";
 
 const CONVERSATIONS_PAGE = 30;
 const MESSAGES_PAGE = 30;
@@ -79,6 +81,7 @@ export function useRenameConversation() {
 
 export function useDeleteConversation() {
   const queryClient = useQueryClient();
+  const { user } = useAuth();
   return useMutation({
     mutationFn: async (id: string) => {
       unwrap(
@@ -89,6 +92,7 @@ export function useDeleteConversation() {
       return id;
     },
     onSuccess: (id) => {
+      if (user) dropChatDraft(user.id, id);
       queryClient.removeQueries({ queryKey: keys.messages.list(id) });
       return queryClient.invalidateQueries({ queryKey: keys.conversations.all });
     },

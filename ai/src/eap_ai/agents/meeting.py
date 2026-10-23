@@ -112,7 +112,7 @@ async def run(ctx: AgentContext) -> AsyncIterator[Event]:
     if await asyncio.to_thread(count_tokens, text) <= s.long_input_tokens:
         yield status_event("Summarizing the meeting…")
         summary = await ask(
-            "smart", MeetingSummary, SUMMARY_SYSTEM, request + wrap("transcript", text)
+            "meeting", MeetingSummary, SUMMARY_SYSTEM, request + wrap("transcript", text)
         )
     else:
         parts = await asyncio.to_thread(split_tokens, text, s.map_chunk_tokens)
@@ -120,10 +120,10 @@ async def run(ctx: AgentContext) -> AsyncIterator[Event]:
         for i, part in enumerate(parts, start=1):
             yield status_event(f"Reading transcript part {i} of {len(parts)}…")
             user = f"Part {i} of {len(parts)}.\n\n" + wrap("transcript", part)
-            partials.append(await ask("fast", MeetingSummary, MAP_SYSTEM, user))
+            partials.append(await ask("map", MeetingSummary, MAP_SYSTEM, user))
         yield status_event("Merging notes…")
         summary = await ask(
-            "smart", MeetingSummary, REDUCE_SYSTEM, request + partials_json(partials)
+            "meeting", MeetingSummary, REDUCE_SYSTEM, request + partials_json(partials)
         )
     summary = enforce_owners(summary, text)
     yield result_event(AgentName.meeting, summary, markdown=summary.to_markdown())

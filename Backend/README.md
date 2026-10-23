@@ -121,6 +121,7 @@ AI module** (`eap_ai` reads `.env` from the working directory), so it must conta
 | `MISTRAL_API_KEY` | — | AI module: required when `AI_MODE=real` |
 | `QDRANT_URL` | `http://127.0.0.1:6333` | AI module: vector store |
 | `FAST_MODEL` / `SMART_MODEL` | `ministral-8b-latest` / `ministral-14b-latest` | AI module models |
+| `TASK_MODELS`, `FAST_FALLBACK_MODELS`, `SMART_FALLBACK_MODELS` | `{}`, `["ministral-3b-latest"]`, `["ministral-8b-latest"]` | per-task models and fallbacks when a model is busy (see `../ai/README.md`) |
 
 Full list of AI-module settings (chunking, thresholds, cache): `../ai/README.md` › Configuration.
 

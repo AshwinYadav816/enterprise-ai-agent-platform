@@ -34,7 +34,7 @@ async def env(monkeypatch: pytest.MonkeyPatch) -> AsyncIterator[FakeChatModel]:
     )
     llm.clear_caches()
     monkeypatch.setattr(llm, "get_embedder", lambda: embedder)
-    monkeypatch.setattr(llm, "get_chat_model", lambda tier, streaming=False: chat)
+    monkeypatch.setattr(llm, "get_chat_model", lambda task, streaming=False: chat)
     await qdrant.close_client()
     yield chat
     await qdrant.close_client()

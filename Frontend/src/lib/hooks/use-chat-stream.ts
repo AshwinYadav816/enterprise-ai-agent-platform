@@ -6,6 +6,7 @@ import { useCallback, useSyncExternalStore } from "react";
 
 import { toastError } from "@/lib/api/errors";
 import { keys } from "@/lib/api/keys";
+import { carryNewChatDraft } from "@/lib/chat/draft";
 import {
   getStream,
   startStream,
@@ -15,6 +16,7 @@ import {
 } from "@/lib/chat/stream-store";
 import type { SendMessageBody } from "@/lib/chat/types";
 import { createConversation } from "@/lib/hooks/use-conversations";
+import { useAuth } from "@/providers/auth-provider";
 
 /**
  * The live reply of one conversation + send/stop. Without a conversation id (/chat), `send`
@@ -24,6 +26,7 @@ import { createConversation } from "@/lib/hooks/use-conversations";
 export function useChatStream(conversationId: string | undefined) {
   const queryClient = useQueryClient();
   const router = useRouter();
+  const { user } = useAuth();
   const stream: ChatStream | undefined = useSyncExternalStore(
     subscribe,
     () => getStream(conversationId),
@@ -51,10 +54,13 @@ export function useChatStream(conversationId: string | undefined) {
             queryClient.invalidateQueries({ queryKey: keys.conversations.all }),
           ]),
       });
-      if (!conversationId) router.replace(`/chat/${target}`);
+      if (!conversationId) {
+        if (user) carryNewChatDraft(user.id, target); // before its page reads the draft
+        router.replace(`/chat/${target}`);
+      }
       return true;
     },
-    [conversationId, queryClient, router],
+    [conversationId, queryClient, router, user],
   );
 
   const stop = useCallback(() => {

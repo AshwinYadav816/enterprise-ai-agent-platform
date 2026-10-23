@@ -13,7 +13,10 @@ import { Button } from "@/components/ui/button";
 import { Field, FieldDescription, FieldError, FieldLabel } from "@/components/ui/field";
 import { Tabs, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { Textarea } from "@/components/ui/textarea";
+import { parseDraftDocs } from "@/lib/chat/draft";
+import { useRestoredDraft, useSaveDraft } from "@/lib/hooks/use-stored-state";
 import type { ReportRequest, ReportType } from "@/lib/hooks/use-tools";
+import { asOneOf, asRecord, asString } from "@/lib/storage";
 
 const REPORT_TYPES: { value: ReportType; label: string; period: string }[] = [
   { value: "weekly", label: "Weekly", period: "e.g. 14–20 Oct 2026" },
@@ -32,6 +35,15 @@ const schema = z.object({
     .max(4000, "Keep it under 4,000 characters"),
 });
 type Values = z.infer<typeof schema>;
+type Draft = Values & { docs: PickedDoc[] };
+
+const EMPTY: Draft = { report_type: "weekly", period: "", instruction: "", docs: [] };
+const parseDraft = asRecord<Draft>({
+  report_type: asOneOf(REPORT_TYPES.map((t) => t.value)),
+  period: asString,
+  instruction: asString,
+  docs: parseDraftDocs,
+});
 
 export function ReportForm({
   onSubmit,
@@ -41,7 +53,8 @@ export function ReportForm({
   pending: boolean;
 }) {
   const instructionId = useId();
-  const [docs, setDocs] = useState<PickedDoc[]>([]);
+  const restored = useRestoredDraft("tool:report", EMPTY, parseDraft); // survives a refresh
+  const [docs, setDocs] = useState<PickedDoc[]>(restored.docs);
   const {
     control,
     register,
@@ -49,9 +62,15 @@ export function ReportForm({
     formState: { errors },
   } = useForm<Values>({
     resolver: zodResolver(schema),
-    defaultValues: { report_type: "weekly", period: "", instruction: "" },
+    defaultValues: {
+      report_type: restored.report_type,
+      period: restored.period,
+      instruction: restored.instruction,
+    },
   });
-  const reportType = useWatch({ control, name: "report_type" });
+  const values = useWatch({ control }) as Values;
+  useSaveDraft("tool:report", { ...values, docs }, EMPTY);
+  const reportType = values.report_type;
   const type = REPORT_TYPES.find((t) => t.value === reportType) ?? REPORT_TYPES[0];
 
   return (

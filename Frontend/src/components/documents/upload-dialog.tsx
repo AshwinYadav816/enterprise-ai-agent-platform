@@ -17,9 +17,11 @@ import {
 } from "@/components/ui/dialog";
 import { Label } from "@/components/ui/label";
 import { errorMessage } from "@/lib/api/errors";
-import type { UserRole } from "@/lib/documents";
+import { visibilityOptions, type UserRole } from "@/lib/documents";
 import { formatBytes } from "@/lib/format";
 import { useUploadDocument } from "@/lib/hooks/use-documents";
+import { useStoredState } from "@/lib/hooks/use-stored-state";
+import { asOneOf } from "@/lib/storage";
 import { cn } from "@/lib/utils";
 import { useAuth } from "@/providers/auth-provider";
 
@@ -40,7 +42,13 @@ export function UploadDialog({
   const upload = useUploadDocument();
   const visibilityId = useId();
   const [items, setItems] = useState<Item[]>([]);
-  const [visibility, setVisibility] = useState<UserRole>("employee");
+  // Remembered for the next upload; only a level this user may still pick.
+  const [visibility, setVisibility] = useStoredState<UserRole>(
+    "pref",
+    "upload-visibility",
+    "employee",
+    asOneOf(user ? visibilityOptions(user.role) : []),
+  );
   const [running, setRunning] = useState(false);
 
   const pending = items.filter((i) => i.state === "pending");

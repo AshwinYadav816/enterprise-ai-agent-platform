@@ -1,4 +1,4 @@
-"""Evaluate the AI module end to end with REAL models (costs API calls).
+ """Evaluate the AI module end to end with REAL models (costs API calls).
 
     uv run python eval/run_eval.py                 # ingest eval/docs, run QA + routing, judge
     uv run python eval/run_eval.py --no-judge --skip-ingest
@@ -146,7 +146,7 @@ async def judge(question: str, answer: str) -> Groundedness | None:
     user = (
         f"Question: {question}\n\nSources:\n{format_sources(sources)}\n\n{wrap('answer', answer)}"
     )
-    return await ask("fast", Groundedness, JUDGE_SYSTEM, user)
+    return await ask("judge", Groundedness, JUDGE_SYSTEM, user)
 
 
 async def run_question(row: QARow, use_router: bool, use_judge: bool) -> dict[str, Any]:

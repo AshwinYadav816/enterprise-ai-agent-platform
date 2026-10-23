@@ -118,8 +118,9 @@ export function useGenerations(kind?: GenerationKind) {
   return { ...query, generations };
 }
 
-export function useGeneration(id: string) {
+export function useGeneration(id: string, enabled = true) {
   return useQuery({
+    enabled,
     queryKey: keys.generations.detail(id),
     queryFn: async () =>
       unwrap(

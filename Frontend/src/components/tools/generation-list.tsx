@@ -2,7 +2,6 @@
 
 import { ChevronRight, FileSearch, History, Loader2, Mail, NotebookPen, Users } from "lucide-react";
 import Link from "next/link";
-import { useState } from "react";
 
 import { EmptyState } from "@/components/common/empty-state";
 import { ErrorState } from "@/components/common/error-state";
@@ -13,6 +12,9 @@ import { Skeleton } from "@/components/ui/skeleton";
 import { Tabs, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { formatDateTime, formatRelative } from "@/lib/format";
 import { KIND_LABEL, useGenerations, type GenerationKind } from "@/lib/hooks/use-tools";
+import { useUrlState } from "@/lib/hooks/use-url-state";
+
+const KINDS = ["all", ...(Object.keys(KIND_LABEL) as GenerationKind[])] as const;
 
 const FILTERS: { value: GenerationKind | "all"; label: string }[] = [
   { value: "all", label: "All" },
@@ -31,7 +33,7 @@ export const KIND_ICON = {
 
 /** Everything the tools produced for you, newest first. */
 export function GenerationList() {
-  const [kind, setKind] = useState<GenerationKind | "all">("all");
+  const [kind, setKind] = useUrlState<GenerationKind | "all">("kind", "all", KINDS);
   const query = useGenerations(kind === "all" ? undefined : kind);
 
   return (

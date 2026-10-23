@@ -1,9 +1,44 @@
 """Settings loaded from environment / .env. All tunables live here."""
 
 from functools import lru_cache
+from typing import Literal
 
-from pydantic import SecretStr
+from pydantic import Field, SecretStr
 from pydantic_settings import BaseSettings, SettingsConfigDict
+
+Tier = Literal["fast", "smart"]
+Task = Literal[
+    "router",
+    "rewrite",
+    "classify",
+    "summary",
+    "map",
+    "judge",
+    "answer",
+    "chat",
+    "synthesis",
+    "report",
+    "meeting",
+    "email",
+    "document",
+]
+
+# Every LLM call names its task; the task picks the default model tier.
+TASK_TIERS: dict[Task, Tier] = {
+    "router": "fast",  # plan which agents run
+    "rewrite": "fast",  # follow-up -> standalone question
+    "classify": "fast",  # email request type and tone
+    "summary": "fast",  # conversation history summary
+    "map": "fast",  # one part of a long document / transcript
+    "judge": "fast",  # eval/run_eval.py groundedness score (not used by the app)
+    "answer": "smart",  # grounded answer with citations
+    "chat": "smart",  # small talk
+    "synthesis": "smart",  # final reply after several steps
+    "report": "smart",
+    "meeting": "smart",
+    "email": "smart",
+    "document": "smart",
+}
 
 
 class Settings(BaseSettings):
@@ -20,6 +55,15 @@ class Settings(BaseSettings):
     llm_timeout: int = 60
     llm_max_retries: int = 2  # retries after the first attempt (429 / 5xx / timeouts)
     llm_retry_backoff: float = 1.0  # seconds; doubles each retry
+    # Per-task model override, e.g. TASK_MODELS='{"email": "open-mistral-nemo"}'. Tasks without
+    # one use their tier's model (TASK_TIERS below).
+    task_models: dict[Task, str] = Field(default_factory=dict)
+    # Tried in order, with the same request, when a model is busy / rate-limited / failing.
+    # Verified for streaming and structured output. No 3b for smart tasks on purpose: a weaker
+    # model writing grounded answers risks invented content, and "busy" is better than that.
+    # (open-mistral-nemo is not an option: Mistral now serves it with ministral-8b.)
+    fast_fallback_models: list[str] = ["ministral-3b-latest"]
+    smart_fallback_models: list[str] = ["ministral-8b-latest"]
 
     # Qdrant
     qdrant_url: str = "http://localhost:6333"

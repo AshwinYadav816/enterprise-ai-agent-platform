@@ -140,7 +140,7 @@ async def synthesize_node(state: OrchestratorState) -> dict[str, Any]:
     ]
     text: list[str] = []
     try:
-        async for chunk in llm.get_chat_model("smart", streaming=True).astream(messages):
+        async for chunk in llm.get_chat_model("synthesis", streaming=True).astream(messages):
             if isinstance(chunk.content, str) and chunk.content:
                 text.append(chunk.content)
                 _emit(Event(type="token", data={"text": chunk.content}))

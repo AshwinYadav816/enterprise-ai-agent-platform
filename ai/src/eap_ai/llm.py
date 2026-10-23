@@ -5,7 +5,7 @@ import logging
 import random
 from collections.abc import AsyncIterator
 from functools import lru_cache
-from typing import Any, Literal
+from typing import Any
 
 import httpx
 from langchain_core.callbacks import AsyncCallbackManagerForLLMRun
@@ -14,13 +14,12 @@ from langchain_core.language_models import BaseChatModel
 from langchain_core.messages import BaseMessage
 from langchain_core.outputs import ChatGenerationChunk, ChatResult
 from langchain_mistralai import ChatMistralAI, MistralAIEmbeddings
+from pydantic import Field
 from tokenizers import Tokenizer, models, pre_tokenizers  # installed with langchain-mistralai
 
-from eap_ai.config import get_settings
+from eap_ai.config import TASK_TIERS, Task, Tier, get_settings
 
 log = logging.getLogger(__name__)
-
-Tier = Literal["fast", "smart"]
 
 _sleep = asyncio.sleep  # patched in tests
 
@@ -77,18 +76,41 @@ def is_provider_unavailable(exc: BaseException) -> bool:
     return is_rate_limited(exc) or any(is_retryable(e) for e in _causes(exc))
 
 
-class RetryingChatMistralAI(ChatMistralAI):
-    """ChatMistralAI that also retries 429 / 5xx / timeouts with exponential backoff.
+def _answered_by(result: ChatResult, model: str) -> ChatResult:
+    """Label the result with the model that produced it (a fallback, possibly), so token usage
+    is counted against the right model. Streams get this from Mistral's own chunks."""
+    for generation in result.generations:
+        generation.message.response_metadata["model_name"] = model
+    if result.llm_output is not None:
+        result.llm_output.update(model_name=model, model=model)
+    return result
 
-    The base class only retries network errors. Streams are retried only if the failure
-    happens before the first chunk, so users never see duplicated text.
+
+class RetryingChatMistralAI(ChatMistralAI):
+    """ChatMistralAI that retries 429 / 5xx / timeouts and falls back to other models.
+
+    The base class only retries network errors. Per model: 5xx and timeouts are retried with
+    exponential backoff; a 429 (rate limit, or "no capacity" for this model) moves straight to
+    the next model in `fallback_models`, since waiting a second rarely helps. The last model
+    retries 429s too. Streams are retried or switched only if the failure happens before the
+    first chunk, so users never see duplicated text.
     """
 
     status_retries: int = 2
     retry_backoff: float = 1.0
+    fallback_models: list[str] = Field(default_factory=list)
 
     def _delay(self, attempt: int) -> float:
         return self.retry_backoff * 2**attempt + random.uniform(0, self.retry_backoff / 2)
+
+    def _models(self) -> list[str]:
+        return [self.model, *(m for m in self.fallback_models if m != self.model)]
+
+    def _give_up_on(self, exc: Exception, attempt: int, is_last_model: bool) -> bool:
+        """True: stop retrying this model (switch to the next one, or raise if none left)."""
+        if not (is_retryable(exc) or is_rate_limited(exc)):
+            raise exc
+        return attempt == self.status_retries or (is_rate_limited(exc) and not is_last_model)
 
     async def _agenerate(
         self,
@@ -100,17 +122,24 @@ class RetryingChatMistralAI(ChatMistralAI):
         stream = kwargs.get("stream")
         if stream if stream is not None else self.streaming:  # _astream retries itself
             return await super()._agenerate(messages, stop=stop, run_manager=run_manager, **kwargs)
-        for attempt in range(self.status_retries + 1):
-            try:
-                return await super()._agenerate(
-                    messages, stop=stop, run_manager=run_manager, **kwargs
-                )
-            except Exception as exc:
-                if attempt == self.status_retries or not is_retryable(exc):
-                    raise
-                delay = self._delay(attempt)
-                log.warning("%s: %s; retry %d in %.1fs", self.model, exc, attempt + 1, delay)
-                await _sleep(delay)
+        models = self._models()
+        for i, model in enumerate(models):
+            last = i == len(models) - 1
+            for attempt in range(self.status_retries + 1):
+                try:
+                    result = await super()._agenerate(
+                        messages, stop=stop, run_manager=run_manager, **{**kwargs, "model": model}
+                    )
+                    return _answered_by(result, model)
+                except Exception as exc:
+                    if self._give_up_on(exc, attempt, last):
+                        if last:
+                            raise
+                        log.warning("%s unavailable (%s); using %s", model, exc, models[i + 1])
+                        break
+                    delay = self._delay(attempt)
+                    log.warning("%s: %s; retry %d in %.1fs", model, exc, attempt + 1, delay)
+                    await _sleep(delay)
         raise AssertionError("unreachable")
 
     async def _astream(
@@ -120,31 +149,56 @@ class RetryingChatMistralAI(ChatMistralAI):
         run_manager: AsyncCallbackManagerForLLMRun | None = None,
         **kwargs: Any,
     ) -> AsyncIterator[ChatGenerationChunk]:
-        for attempt in range(self.status_retries + 1):
-            started = False
-            try:
-                async for chunk in super()._astream(
-                    messages, stop=stop, run_manager=run_manager, **kwargs
-                ):
-                    started = True
-                    yield chunk
-                return
-            except Exception as exc:
-                if started or attempt == self.status_retries or not is_retryable(exc):
-                    raise
-                delay = self._delay(attempt)
-                log.warning("%s stream: %s; retry %d in %.1fs", self.model, exc, attempt + 1, delay)
-                await _sleep(delay)
+        models = self._models()
+        for i, model in enumerate(models):
+            last = i == len(models) - 1
+            for attempt in range(self.status_retries + 1):
+                started = False
+                try:
+                    async for chunk in super()._astream(
+                        messages, stop=stop, run_manager=run_manager, **{**kwargs, "model": model}
+                    ):
+                        started = True
+                        yield chunk
+                    return
+                except Exception as exc:
+                    if started:
+                        raise
+                    if self._give_up_on(exc, attempt, last):
+                        if last:
+                            raise
+                        log.warning(
+                            "%s stream unavailable (%s); using %s", model, exc, models[i + 1]
+                        )
+                        break
+                    delay = self._delay(attempt)
+                    log.warning("%s stream: %s; retry %d in %.1fs", model, exc, attempt + 1, delay)
+                    await _sleep(delay)
+
+
+def tier_of(task: Task) -> Tier:
+    return TASK_TIERS[task]
+
+
+def models_for(task: Task) -> list[str]:
+    """The model for a task, then its tier's fallbacks (in order, no duplicates)."""
+    s = get_settings()
+    tier = tier_of(task)
+    primary = s.task_models.get(task) or (s.fast_model if tier == "fast" else s.smart_model)
+    fallbacks = s.fast_fallback_models if tier == "fast" else s.smart_fallback_models
+    return list(dict.fromkeys([primary, *fallbacks]))
 
 
 @lru_cache
-def get_chat_model(tier: Tier, streaming: bool = False) -> BaseChatModel:
+def get_chat_model(task: Task, streaming: bool = False) -> BaseChatModel:
     s = get_settings()
+    model, *fallbacks = models_for(task)
     kwargs: dict[str, object] = {}
-    if tier == "fast" and _supports_reasoning_effort():
+    if tier_of(task) == "fast" and _supports_reasoning_effort():
         kwargs["reasoning_effort"] = s.fast_reasoning_effort
     return RetryingChatMistralAI(
-        model=s.fast_model if tier == "fast" else s.smart_model,
+        model=model,
+        fallback_models=fallbacks,
         api_key=s.mistral_api_key,
         streaming=streaming,
         timeout=s.llm_timeout,  # per HTTP call

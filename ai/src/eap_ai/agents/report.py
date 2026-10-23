@@ -86,5 +86,5 @@ async def run(ctx: AgentContext) -> AsyncIterator[Event]:
         raise AgentInputError(NO_MATERIAL)
 
     yield status_event("Writing the report…")
-    report = await ask("smart", Report, REPORT_SYSTEM, "\n\n".join(parts))
+    report = await ask("report", Report, REPORT_SYSTEM, "\n\n".join(parts))
     yield result_event(AgentName.report, report, markdown=report.to_markdown())

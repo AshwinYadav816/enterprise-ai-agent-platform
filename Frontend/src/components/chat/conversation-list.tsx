@@ -33,6 +33,8 @@ import {
   useDeleteConversation,
   useRenameConversation,
 } from "@/lib/hooks/use-conversations";
+import { useStoredState } from "@/lib/hooks/use-stored-state";
+import { asString } from "@/lib/storage";
 import { cn } from "@/lib/utils";
 
 /** Conversation history: search, grouped by recency, rename inline, delete with confirm. */
@@ -47,7 +49,7 @@ export function ConversationList({
   const { id: activeId } = useParams<{ id?: string }>();
   const router = useRouter();
   const query = useConversations();
-  const [search, setSearch] = useState("");
+  const [search, setSearch] = useStoredState("draft", "chat:search", "", asString);
   const [renaming, setRenaming] = useState<string | null>(null);
   const [toDelete, setToDelete] = useState<Conversation | null>(null);
   const remove = useDeleteConversation();

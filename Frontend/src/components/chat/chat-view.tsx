@@ -120,6 +120,8 @@ export function ChatView({ conversationId }: { conversationId?: string }) {
       <div className="shrink-0 px-3 pb-3 md:px-6 md:pb-5">
         <div className="mx-auto w-full max-w-[760px]">
           <Composer
+            key={conversationId ?? "new"}
+            conversationId={conversationId}
             streaming={streaming}
             onSend={onSend}
             onStop={stop}

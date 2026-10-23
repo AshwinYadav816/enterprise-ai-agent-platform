@@ -1,7 +1,7 @@
 "use client";
 
 import { FileText, Loader2, Search, Upload } from "lucide-react";
-import { useEffect, useState } from "react";
+import { useState } from "react";
 
 import { EmptyState } from "@/components/common/empty-state";
 import { ErrorState } from "@/components/common/error-state";
@@ -20,22 +20,18 @@ import {
 import { Skeleton } from "@/components/ui/skeleton";
 import { STATUS_LABEL, type DocumentStatus } from "@/lib/documents";
 import { useDocuments } from "@/lib/hooks/use-documents";
+import { useUrlSearch, useUrlState } from "@/lib/hooks/use-url-state";
 import { useAuth } from "@/providers/auth-provider";
 
 type StatusFilter = DocumentStatus | "all";
+const STATUS_FILTERS = ["all", ...(Object.keys(STATUS_LABEL) as DocumentStatus[])] as const;
 
 export function DocumentsView() {
   const { user } = useAuth();
   const [uploadOpen, setUploadOpen] = useState(false);
-  const [searchText, setSearchText] = useState("");
-  const [search, setSearch] = useState("");
-  const [status, setStatus] = useState<StatusFilter>("all");
-
-  // Search as you type, without a request per keystroke.
-  useEffect(() => {
-    const timer = setTimeout(() => setSearch(searchText.trim()), 300);
-    return () => clearTimeout(timer);
-  }, [searchText]);
+  // Filters live in the URL: a refresh or a shared link keeps them.
+  const { text: searchText, setText: setSearchText, search } = useUrlSearch();
+  const [status, setStatus] = useUrlState<StatusFilter>("status", "all", STATUS_FILTERS);
 
   const query = useDocuments({ search, status: status === "all" ? undefined : status });
   const filtered = search !== "" || status !== "all";
@@ -104,7 +100,6 @@ export function DocumentsView() {
                 variant="outline"
                 onClick={() => {
                   setSearchText("");
-                  setSearch("");
                   setStatus("all");
                 }}
               >

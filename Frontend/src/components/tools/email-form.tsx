@@ -17,7 +17,9 @@ import {
 } from "@/components/ui/select";
 import { Tabs, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { Textarea } from "@/components/ui/textarea";
+import { useRestoredDraft, useSaveDraft } from "@/lib/hooks/use-stored-state";
 import type { EmailRequest, EmailTask, EmailTone } from "@/lib/hooks/use-tools";
+import { asOneOf, asRecord, asString } from "@/lib/storage";
 
 export const EMAIL_TASKS: {
   value: EmailTask;
@@ -68,6 +70,13 @@ const schema = z.object({
 });
 type Values = z.infer<typeof schema>;
 
+const EMPTY: Values = { task: "draft", tone: "friendly", text: "" };
+const parseDraft = asRecord<Values>({
+  task: asOneOf(EMAIL_TASKS.map((t) => t.value)),
+  tone: asOneOf(TONES.map((t) => t.value)),
+  text: asString,
+});
+
 export function EmailForm({
   onSubmit,
   pending,
@@ -84,9 +93,11 @@ export function EmailForm({
     formState: { errors },
   } = useForm<Values>({
     resolver: zodResolver(schema),
-    defaultValues: { task: "draft", tone: "friendly", text: "" },
+    defaultValues: useRestoredDraft("tool:email", EMPTY, parseDraft), // survives a refresh
   });
-  const task = useWatch({ control, name: "task" });
+  const values = useWatch({ control }) as Values;
+  useSaveDraft("tool:email", values, EMPTY);
+  const task = values.task;
   const current = EMAIL_TASKS.find((t) => t.value === task) ?? EMAIL_TASKS[0];
   const showTone = TONE_TASKS.has(task);
 

@@ -76,7 +76,7 @@ async def run(ctx: AgentContext) -> AsyncIterator[Event]:
         if ctx.instruction == req.query
         else (f"{ctx.instruction}\n\nOriginal user message:\n{req.query}")
     )
-    intent = await ask("fast", EmailIntent, CLASSIFY_SYSTEM, request_text)
+    intent = await ask("classify", EmailIntent, CLASSIFY_SYSTEM, request_text)
 
     parts = [f"Task: {intent.task.value}\nTone: {intent.tone}", wrap("document", request_text)]
     if prior := format_prior_outputs(ctx.prior_outputs):
@@ -88,5 +88,5 @@ async def run(ctx: AgentContext) -> AsyncIterator[Event]:
             parts.append("Documents:\n" + format_sources(sources))
 
     yield status_event("Writing the email…")
-    email = await ask("smart", EmailOutput, WRITE_SYSTEM, "\n\n".join(parts))
+    email = await ask("email", EmailOutput, WRITE_SYSTEM, "\n\n".join(parts))
     yield result_event(AgentName.email, email, task=intent.task.value, tone=intent.tone)

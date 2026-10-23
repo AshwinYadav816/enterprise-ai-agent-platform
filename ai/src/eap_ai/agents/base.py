@@ -14,7 +14,7 @@ from pydantic import BaseModel
 
 from eap_ai import llm
 from eap_ai.ingestion.chunker import TIKTOKEN_ENCODING
-from eap_ai.llm import Tier
+from eap_ai.llm import Task
 from eap_ai.schemas import AgentName, AgentRequest, Event, Source
 
 UNTRUSTED_NOTE = (
@@ -51,9 +51,9 @@ def sources_event(sources: Sequence[Source]) -> Event:
     return Event(type="sources", data={"sources": [s.model_dump() for s in sources]})
 
 
-async def ask[T: BaseModel](tier: Tier, schema: type[T], system: str, user: str) -> T:
+async def ask[T: BaseModel](task: Task, schema: type[T], system: str, user: str) -> T:
     """One structured LLM call returning a validated `schema` instance."""
-    model = llm.get_chat_model(tier).with_structured_output(schema)
+    model = llm.get_chat_model(task).with_structured_output(schema)
     result = await model.ainvoke([SystemMessage(content=system), HumanMessage(content=user)])
     if not isinstance(result, schema):
         raise TypeError(f"Expected {schema.__name__}, got {type(result).__name__}")

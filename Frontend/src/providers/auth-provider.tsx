@@ -14,6 +14,7 @@ import {
 } from "@/lib/api/auth";
 import { api } from "@/lib/api/client";
 import { resetStreams } from "@/lib/chat/stream-store";
+import { clearDrafts } from "@/lib/storage";
 import { toastError, unwrap } from "@/lib/api/errors";
 import type { components } from "@/lib/api/schema";
 
@@ -102,6 +103,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
     } catch {
       // offline: still forget the session locally
     }
+    clearDrafts(); // signing out (not an expired session): unsent work is not left behind
     becomeAnonymous();
   }, [becomeAnonymous]);
 

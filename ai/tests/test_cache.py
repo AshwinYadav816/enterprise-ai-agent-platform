@@ -5,9 +5,11 @@ from typing import Any
 import httpx
 import pymupdf
 import pytest
+from langchain_core.callbacks import UsageMetadataCallbackHandler
 from langchain_core.messages import AIMessage, AIMessageChunk
 from langchain_core.outputs import ChatGeneration, ChatGenerationChunk, ChatResult
 from langchain_mistralai import ChatMistralAI
+from pydantic import BaseModel
 
 from eap_ai import cache, llm, service
 from eap_ai.cache import MemoryCache, RedisCache, embedding_key, get_cache, pack, unpack
@@ -53,7 +55,9 @@ async def env(monkeypatch: pytest.MonkeyPatch) -> AsyncIterator[Env]:
     llm.clear_caches()
     monkeypatch.setattr(llm, "get_embedder", lambda: e.embedder)
     monkeypatch.setattr(
-        llm, "get_chat_model", lambda tier, streaming=False: e.fast if tier == "fast" else e.smart
+        llm,
+        "get_chat_model",
+        lambda task, streaming=False: e.fast if llm.tier_of(task) == "fast" else e.smart,
     )
     await qdrant.close_client()
     await llm.embedding_dim()  # one-time dimension probe, so counters below start clean
@@ -294,9 +298,116 @@ async def test_stream_retries_only_before_first_chunk(
         [c async for c in _model().astream("hi")]  # no retry: user already saw "Hel"
 
 
+def _with_fallbacks() -> llm.RetryingChatMistralAI:
+    return llm.RetryingChatMistralAI(
+        api_key="test",
+        model="primary",
+        fallback_models=["backup-1", "backup-2"],
+        status_retries=2,
+        retry_backoff=1.0,
+    )
+
+
+def _patch_generate_by_model(
+    monkeypatch: pytest.MonkeyPatch, failures: dict[str, list[Exception]]
+) -> list[str]:
+    """Fake _agenerate that fails per model; returns the models called, in order."""
+    called: list[str] = []
+
+    async def fake(self: Any, messages: Any, **kwargs: Any) -> ChatResult:
+        model = kwargs["model"]
+        called.append(model)
+        if failures.get(model):
+            raise failures[model].pop(0)
+        usage = {"input_tokens": 3, "output_tokens": 1, "total_tokens": 4}
+        message = AIMessage(content=model, usage_metadata=usage)
+        return ChatResult(generations=[ChatGeneration(message=message)])
+
+    monkeypatch.setattr(ChatMistralAI, "_agenerate", fake)
+    return called
+
+
+async def test_busy_model_falls_back_without_waiting(
+    monkeypatch: pytest.MonkeyPatch, sleeps: list[float]
+) -> None:
+    called = _patch_generate_by_model(monkeypatch, {"primary": [_status_error(429)]})
+    usage = UsageMetadataCallbackHandler()
+    reply = await _with_fallbacks().ainvoke("hi", config={"callbacks": [usage]})
+    assert reply.content == "backup-1"
+    assert called == ["primary", "backup-1"] and sleeps == []
+    assert list(usage.usage_metadata) == ["backup-1"]  # tokens counted for the model that answered
+
+
+async def test_server_errors_retry_then_fall_back(
+    monkeypatch: pytest.MonkeyPatch, sleeps: list[float]
+) -> None:
+    called = _patch_generate_by_model(monkeypatch, {"primary": [_status_error(503)] * 3})
+    assert (await _with_fallbacks().ainvoke("hi")).content == "backup-1"
+    assert called == ["primary"] * 3 + ["backup-1"] and len(sleeps) == 2
+
+
+async def test_last_model_still_retries_then_raises(
+    monkeypatch: pytest.MonkeyPatch, sleeps: list[float]
+) -> None:
+    busy = {m: [_status_error(429)] * 5 for m in ("primary", "backup-1", "backup-2")}
+    called = _patch_generate_by_model(monkeypatch, busy)
+    with pytest.raises(httpx.HTTPStatusError):
+        await _with_fallbacks().ainvoke("hi")
+    assert called == ["primary", "backup-1"] + ["backup-2"] * 3
+
+    called = _patch_generate_by_model(monkeypatch, {"primary": [_status_error(400)]})
+    with pytest.raises(httpx.HTTPStatusError):
+        await _with_fallbacks().ainvoke("hi")
+    assert called == ["primary"]  # a bad request is not the model's fault: no fallback
+
+
+async def test_stream_falls_back_only_before_first_chunk(
+    monkeypatch: pytest.MonkeyPatch, sleeps: list[float]
+) -> None:
+    called: list[str] = []
+    late_failure = False
+
+    async def fake_stream(self: Any, messages: Any, **kwargs: Any) -> AsyncIterator[Any]:
+        called.append(kwargs["model"])
+        if kwargs["model"] == "primary":
+            if late_failure:
+                yield ChatGenerationChunk(message=AIMessageChunk(content="Hel"))
+            raise _status_error(429)
+        yield ChatGenerationChunk(message=AIMessageChunk(content=kwargs["model"]))
+
+    monkeypatch.setattr(ChatMistralAI, "_astream", fake_stream)
+    text = "".join([c.content async for c in _with_fallbacks().astream("hi")])  # type: ignore[misc]
+    assert text == "backup-1" and called == ["primary", "backup-1"]
+
+    late_failure = True
+    with pytest.raises(httpx.HTTPStatusError):
+        [c async for c in _with_fallbacks().astream("hi")]  # user already saw "Hel"
+
+
+async def test_structured_output_uses_fallback(
+    monkeypatch: pytest.MonkeyPatch, sleeps: list[float]
+) -> None:
+    class Answer(BaseModel):
+        value: int
+
+    called: list[str] = []
+
+    async def fake(self: Any, messages: Any, **kwargs: Any) -> ChatResult:
+        called.append(kwargs["model"])
+        if kwargs["model"] == "primary":
+            raise _status_error(429)
+        call = {"name": "Answer", "args": {"value": 7}, "id": "c1", "type": "tool_call"}
+        message = AIMessage(content="", tool_calls=[call])
+        return ChatResult(generations=[ChatGeneration(message=message)])
+
+    monkeypatch.setattr(ChatMistralAI, "_agenerate", fake)
+    result = await _with_fallbacks().with_structured_output(Answer).ainvoke("hi")
+    assert result == Answer(value=7) and called == ["primary", "backup-1"]
+
+
 def test_clients_use_configured_timeouts_and_retries() -> None:
     llm.clear_caches()
-    chat = llm.get_chat_model("smart")
+    chat = llm.get_chat_model("answer")
     assert isinstance(chat, llm.RetryingChatMistralAI)
     assert chat.timeout == 60 and chat.status_retries == 2 and chat.max_retries == 2
     emb = llm.get_embedder()

@@ -1,13 +1,15 @@
 from collections.abc import Iterator
+from typing import get_args
 
 import httpx
 import pytest
 import tenacity
-from langchain_mistralai import ChatMistralAI, MistralAIEmbeddings
+from langchain_mistralai import MistralAIEmbeddings
 from langchain_mistralai import embeddings as mistral_embeddings
 from pydantic import BaseModel, ValidationError
 
 from eap_ai import llm
+from eap_ai.config import TASK_TIERS, Task, get_settings
 from eap_ai.schemas import AgentName, AgentRequest, Event, Source, UserCtx
 from tests.fakes import FakeChatModel, FakeEmbedder
 
@@ -27,22 +29,54 @@ def _fresh_llm_caches(monkeypatch: pytest.MonkeyPatch) -> Iterator[None]:
 
 
 def test_chat_model_tiers_use_settings() -> None:
-    fast = llm.get_chat_model("fast")
-    smart = llm.get_chat_model("smart", streaming=True)
-    assert isinstance(fast, ChatMistralAI) and isinstance(smart, ChatMistralAI)
+    fast = llm.get_chat_model("router")
+    smart = llm.get_chat_model("answer", streaming=True)
+    assert isinstance(fast, llm.RetryingChatMistralAI)
+    assert isinstance(smart, llm.RetryingChatMistralAI)
     assert fast.model == "ministral-8b-latest"
     assert smart.model == "ministral-14b-latest"
+    assert fast.fallback_models == ["ministral-3b-latest"]
+    assert smart.fallback_models == ["ministral-8b-latest"]
     assert smart.streaming is True and fast.streaming is False
     assert fast.max_retries == 2 and fast.timeout == 60
 
 
+def test_every_task_has_a_tier() -> None:
+    assert set(get_args(Task)) == set(TASK_TIERS)
+    assert {llm.tier_of(t) for t in TASK_TIERS} == {"fast", "smart"}
+
+
+def test_task_model_override_keeps_tier_fallbacks(monkeypatch: pytest.MonkeyPatch) -> None:
+    monkeypatch.setenv(
+        "TASK_MODELS", '{"email": "ministral-8b-latest", "map": "ministral-3b-latest"}'
+    )
+    monkeypatch.setenv("SMART_FALLBACK_MODELS", '["ministral-8b-latest", "ministral-3b-latest"]')
+    get_settings.cache_clear()
+    assert llm.models_for("report") == [
+        "ministral-14b-latest",
+        "ministral-8b-latest",
+        "ministral-3b-latest",
+    ]
+    # an override that is also one of its tier's fallbacks is listed once, first
+    assert llm.models_for("email") == ["ministral-8b-latest", "ministral-3b-latest"]
+    assert llm.models_for("map") == ["ministral-3b-latest"]
+    assert llm.get_chat_model("email").model == "ministral-8b-latest"
+
+
+def test_unknown_task_in_task_models_is_rejected(monkeypatch: pytest.MonkeyPatch) -> None:
+    monkeypatch.setenv("TASK_MODELS", '{"emails": "open-mistral-nemo"}')  # typo
+    get_settings.cache_clear()
+    with pytest.raises(ValidationError, match="emails"):
+        get_settings()
+
+
 def test_chat_model_is_cached() -> None:
-    assert llm.get_chat_model("fast") is llm.get_chat_model("fast")
-    assert llm.get_chat_model("fast") is not llm.get_chat_model("fast", streaming=True)
+    assert llm.get_chat_model("router") is llm.get_chat_model("router")
+    assert llm.get_chat_model("router") is not llm.get_chat_model("router", streaming=True)
 
 
 def test_reasoning_effort_only_when_supported() -> None:
-    fast = llm.get_chat_model("fast")
+    fast = llm.get_chat_model("router")
     if llm._supports_reasoning_effort():
         assert fast.reasoning_effort == "none"  # type: ignore[attr-defined]
     else:

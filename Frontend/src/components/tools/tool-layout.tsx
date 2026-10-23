@@ -1,13 +1,15 @@
 "use client";
 
 import { Loader2, type LucideIcon } from "lucide-react";
+import { useEffect } from "react";
 
 import { EmptyState } from "@/components/common/empty-state";
 import { ErrorState } from "@/components/common/error-state";
 import { PageHeader } from "@/components/common/page-header";
 import { GenerationView } from "@/components/tools/generation-view";
 import { Skeleton } from "@/components/ui/skeleton";
-import type { Generation } from "@/lib/hooks/use-tools";
+import { useGeneration, type Generation } from "@/lib/hooks/use-tools";
+import { useUrlState } from "@/lib/hooks/use-url-state";
 
 type ToolLayoutProps = {
   eyebrow: string;
@@ -21,6 +23,15 @@ type ToolLayoutProps = {
 
 /** Form left (~40 %), result right on desktop; stacked on phones. */
 export function ToolLayout({ eyebrow, title, description, form, run, empty }: ToolLayoutProps) {
+  // The result shown is kept in the URL (?result=<id>): a refresh reloads it from History.
+  const [resultId, setResultId] = useUrlState<string>("result", "");
+  const latest = run.data;
+  useEffect(() => {
+    if (latest && latest.id !== resultId) setResultId(latest.id);
+  }, [latest, resultId, setResultId]);
+  const saved = useGeneration(resultId, resultId !== "" && latest?.id !== resultId);
+  const shown = latest && latest.id === resultId ? latest : saved.data;
+
   return (
     <div className="space-y-8">
       <PageHeader eyebrow={eyebrow} title={title} description={description} />
@@ -33,8 +44,12 @@ export function ToolLayout({ eyebrow, title, description, form, run, empty }: To
             <Working />
           ) : run.error ? (
             <ErrorState title="That didn't work" error={run.error} />
-          ) : run.data ? (
-            <GenerationView generation={run.data} showHistoryLink />
+          ) : shown ? (
+            <GenerationView generation={shown} showHistoryLink />
+          ) : resultId && saved.isPending ? (
+            <ResultSkeleton />
+          ) : resultId && saved.error ? (
+            <ErrorState title="Couldn't load this result" error={saved.error} />
           ) : (
             <EmptyState icon={empty.icon} title={empty.title} description={empty.description} />
           )}
@@ -51,6 +66,26 @@ function Working() {
         <Loader2 className="size-4 animate-spin text-primary" aria-hidden />
         Working on it… this can take up to a minute.
       </p>
+      <SkeletonBars />
+    </div>
+  );
+}
+
+/** Loading a saved result (after a refresh). */
+function ResultSkeleton() {
+  return (
+    <div className="space-y-4 rounded-lg border bg-card p-5" aria-busy="true">
+      <span className="sr-only" role="status">
+        Loading the result…
+      </span>
+      <SkeletonBars />
+    </div>
+  );
+}
+
+function SkeletonBars() {
+  return (
+    <>
       <Skeleton className="h-6 w-2/3" />
       <div className="space-y-2">
         <Skeleton className="h-4 w-full" />
@@ -58,7 +93,7 @@ function Working() {
         <Skeleton className="h-4 w-4/5" />
       </div>
       <Skeleton className="h-24 w-full" />
-    </div>
+    </>
   );
 }
 

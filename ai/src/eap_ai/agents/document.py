@@ -70,7 +70,7 @@ async def run(ctx: AgentContext) -> AsyncIterator[Event]:
     if await asyncio.to_thread(count_tokens, text) <= s.long_input_tokens:
         yield status_event("Analyzing…")
         insights = await ask(
-            "smart", DocumentInsights, INSIGHTS_SYSTEM, request + wrap("document", text)
+            "document", DocumentInsights, INSIGHTS_SYSTEM, request + wrap("document", text)
         )
     else:
         parts = await asyncio.to_thread(split_tokens, text, s.map_chunk_tokens)
@@ -78,9 +78,9 @@ async def run(ctx: AgentContext) -> AsyncIterator[Event]:
         for i, part in enumerate(parts, start=1):
             yield status_event(f"Reading part {i} of {len(parts)}…")
             user = f"Part {i} of {len(parts)}.\n\n" + wrap("document", part)
-            partials.append(await ask("fast", DocumentInsights, MAP_SYSTEM, user))
+            partials.append(await ask("map", DocumentInsights, MAP_SYSTEM, user))
         yield status_event("Merging notes…")
         insights = await ask(
-            "smart", DocumentInsights, REDUCE_SYSTEM, request + partials_json(partials)
+            "document", DocumentInsights, REDUCE_SYSTEM, request + partials_json(partials)
         )
     yield result_event(AgentName.document, insights, doc_ids=list(ctx.request.doc_ids or []))

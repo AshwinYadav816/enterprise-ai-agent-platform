@@ -12,11 +12,21 @@ import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { Textarea } from "@/components/ui/textarea";
 import { extensionOf } from "@/lib/documents";
 import { formatBytes } from "@/lib/format";
+import { useRestoredDraft, useSaveDraft } from "@/lib/hooks/use-stored-state";
 import type { MeetingInput } from "@/lib/hooks/use-tools";
+import { asOneOf, asRecord, asString } from "@/lib/storage";
 
 const MAX_CHARS = 200_000;
 const MAX_FILE_BYTES = 5 * 1024 * 1024; // backend MAX_TRANSCRIPT_FILE_BYTES
 const FILE_TYPES = ["txt", "vtt", "docx"];
+
+type Draft = { mode: "paste" | "upload"; title: string; transcript: string };
+const EMPTY: Draft = { mode: "paste", title: "", transcript: "" };
+const parseDraft = asRecord<Draft>({
+  mode: asOneOf(["paste", "upload"] as const),
+  title: asString,
+  transcript: asString,
+});
 
 export function MeetingForm({
   onSubmit,
@@ -25,9 +35,12 @@ export function MeetingForm({
   onSubmit: (input: MeetingInput) => void;
   pending: boolean;
 }) {
-  const [mode, setMode] = useState<"paste" | "upload">("paste");
-  const [title, setTitle] = useState("");
-  const [transcript, setTranscript] = useState("");
+  // Survives a refresh, except a chosen file: browsers never restore those.
+  const restored = useRestoredDraft("tool:meeting", EMPTY, parseDraft);
+  const [mode, setMode] = useState(restored.mode);
+  const [title, setTitle] = useState(restored.title);
+  const [transcript, setTranscript] = useState(restored.transcript);
+  useSaveDraft("tool:meeting", { mode, title, transcript }, EMPTY);
   const [file, setFile] = useState<File | null>(null);
   const [error, setError] = useState<string | null>(null);
   const fileRef = useRef<HTMLInputElement>(null);

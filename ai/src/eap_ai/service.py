@@ -166,7 +166,7 @@ async def summarize_history(messages: Sequence[ChatMessage]) -> str:
     if not messages:
         return ""
     transcript = "\n".join(f"{m.role}: {m.content}" for m in messages)
-    model = llm.get_chat_model("fast").with_structured_output(HistorySummary)
+    model = llm.get_chat_model("summary").with_structured_output(HistorySummary)
     result = await model.ainvoke(
         [
             SystemMessage(content=SUMMARY_SYSTEM),
