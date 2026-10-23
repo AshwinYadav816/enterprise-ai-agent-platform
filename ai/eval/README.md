@@ -7,6 +7,12 @@ It ingests `eval/docs/` into an isolated org (`eval-org`, role `eval`), runs eve
 
 ## 1. Prepare the data
 
+Ready-made set: `uv run python eval/make_docs.py` writes 7 documents about a fictional company
+(Acme Corporation; pdf, docx, pptx, xlsx) into `eval/docs/` plus a meeting transcript in
+`eval/transcripts/`. `dataset.jsonl` (36 answerable + 10 unanswerable questions) matches them, and
+`TEST_QUESTIONS.md` is the same set as a manual checklist for the web app. To use your own
+documents instead, replace both.
+
 **Documents** go in `eval/docs/` (pdf, docx, pptx, xlsx). Aim for 8–10 realistic company
 documents: a policy PDF, a project report, meeting transcripts, a spreadsheet and so on.
 

@@ -44,6 +44,39 @@ def is_retryable(exc: BaseException) -> bool:
     return False
 
 
+def _causes(exc: BaseException) -> list[BaseException]:
+    """The exception and what it wraps (tenacity RetryError, __cause__, __context__)."""
+    seen: list[BaseException] = []
+    todo: list[BaseException | None] = [exc]
+    while todo:
+        e = todo.pop()
+        if e is None or any(e is s for s in seen) or len(seen) > 10:
+            continue
+        seen.append(e)
+        attempt = getattr(e, "last_attempt", None)  # tenacity.RetryError (not a direct dep)
+        if attempt is not None and attempt.failed:
+            todo.append(attempt.exception())
+        todo += [e.__cause__, e.__context__]
+    return seen
+
+
+def is_rate_limited(exc: BaseException) -> bool:
+    """Mistral said 429: rate limit, or no capacity for the model right now (code 3505)."""
+    for e in _causes(exc):
+        response = getattr(e, "response", None)
+        if getattr(response, "status_code", None) == 429:
+            return True
+        msg = str(e).lower()
+        if "429" in msg or "rate limit" in msg or "capacity" in msg:
+            return True
+    return False
+
+
+def is_provider_unavailable(exc: BaseException) -> bool:
+    """The AI provider is busy or down (429, 5xx, timeout): a retry later may work."""
+    return is_rate_limited(exc) or any(is_retryable(e) for e in _causes(exc))
+
+
 class RetryingChatMistralAI(ChatMistralAI):
     """ChatMistralAI that also retries 429 / 5xx / timeouts with exponential backoff.
 

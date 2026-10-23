@@ -34,6 +34,28 @@ export function sourceFor(sources: Source[], n: number): Source | undefined {
   return sources.find((s) => s.n === n);
 }
 
+/**
+ * Sources actually cited as `[n]` somewhere in `texts` (outside code). Passages the AI was given
+ * but didn't cite aren't listed, so a "couldn't find this" reply shows no sources.
+ */
+export function citedSources(sources: Source[], texts: string[]): Source[] {
+  const cited = new Set<number>();
+  for (const text of texts) {
+    text.split(CODE).forEach((part, i) => {
+      if (i % 2 === 0) for (const m of part.matchAll(MARKER)) cited.add(Number(m[1]));
+    });
+  }
+  return sources.filter((s) => cited.has(s.n));
+}
+
+/** Text of a result card that may contain [n] citations (not its source list or cited numbers). */
+export function citableText(result: { output: object; markdown?: string }): string {
+  if (result.markdown) return result.markdown;
+  return JSON.stringify(result.output, (key, value: unknown) =>
+    key === "sources" || key === "cited" ? undefined : value,
+  );
+}
+
 /** One entry per (n, document, page), in order: the footnote list under an answer. */
 export function uniqueSources(sources: Source[]): Source[] {
   const seen = new Set<string>();

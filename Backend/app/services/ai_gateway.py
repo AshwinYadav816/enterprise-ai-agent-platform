@@ -217,6 +217,9 @@ class FakeAIGateway:
                 yield Event(type="token", data={"text": word + " "})
         else:  # meeting/email/report/document: progress statuses, then the result card
             yield Event(type="status", data={"message": f"Working on the {agent.value}…"})
+            if agent is AgentName.report:  # a real report is only written from found documents
+                yield Event(type="sources", data={"sources": []})
+                yield Event(type="status", data={"message": "Writing the report…"})
         yield Event(type="result", data={"agent": agent.value, "output": output, **extra})
         yield Event(
             type="done",

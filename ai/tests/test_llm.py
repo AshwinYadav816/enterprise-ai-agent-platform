@@ -1,6 +1,8 @@
 from collections.abc import Iterator
 
+import httpx
 import pytest
+import tenacity
 from langchain_mistralai import ChatMistralAI, MistralAIEmbeddings
 from langchain_mistralai import embeddings as mistral_embeddings
 from pydantic import BaseModel, ValidationError
@@ -117,3 +119,35 @@ def test_schemas_contract() -> None:
     with pytest.raises(ValidationError):
         Event(type="bogus")
     assert Source(n=1, doc_id="d", filename="f.pdf", snippet="s").page is None
+
+
+def _http_error(status: int, body: str = "") -> httpx.HTTPStatusError:
+    request = httpx.Request("POST", "https://api.mistral.ai/v1/embeddings")
+    response = httpx.Response(status, request=request, text=body)
+    return httpx.HTTPStatusError(f"{status}", request=request, response=response)
+
+
+def _wrapped_by_tenacity(exc: BaseException) -> BaseException:
+    """How langchain_mistralai's embedder reports a failed call: a tenacity RetryError."""
+
+    @tenacity.retry(stop=tenacity.stop_after_attempt(1))
+    def call() -> None:
+        raise exc
+
+    try:
+        call()
+    except tenacity.RetryError as err:
+        return err
+    raise AssertionError("not raised")
+
+
+def test_rate_limit_detected_through_retry_wrappers() -> None:
+    capacity = _http_error(429, '{"message": "Not enough capacity", "code": "3505"}')
+    assert llm.is_rate_limited(_wrapped_by_tenacity(capacity))
+    assert llm.is_provider_unavailable(_wrapped_by_tenacity(_http_error(503)))
+    assert not llm.is_rate_limited(_wrapped_by_tenacity(_http_error(401)))
+    assert not llm.is_provider_unavailable(_wrapped_by_tenacity(_http_error(401)))
+    try:
+        raise RuntimeError("embedding failed") from capacity
+    except RuntimeError as chained:
+        assert llm.is_rate_limited(chained)

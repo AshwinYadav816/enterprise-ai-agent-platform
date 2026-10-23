@@ -30,6 +30,8 @@ from eap_ai.schemas import AgentName, Event
 
 log = logging.getLogger(__name__)
 
+PROVIDER_BUSY = "The AI service is busy right now. Please try again in a minute."
+
 AGENTS: dict[AgentName, Agent] = {
     AgentName.research: research.run,
     AgentName.email: email.run,
@@ -110,6 +112,9 @@ async def execute_step_node(state: OrchestratorState) -> dict[str, Any]:
     except Exception as exc:
         if isinstance(exc, AgentInputError):
             message = str(exc)
+        elif llm.is_provider_unavailable(exc):
+            log.warning("Agent %s: AI provider unavailable: %r", step.agent.value, exc)
+            message = PROVIDER_BUSY
         else:
             log.exception("Agent %s failed", step.agent.value)
             message = f"The {step.agent.value} step failed. Please try again."

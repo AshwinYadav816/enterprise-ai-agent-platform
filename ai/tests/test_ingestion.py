@@ -88,6 +88,20 @@ def test_pdf_loader_pages_and_scanned_flag(pdf_bytes: bytes) -> None:
     assert any("possibly scanned" in w and "[2]" in w for w in warnings)
 
 
+def test_pdf_loader_expands_ligatures() -> None:
+    buf = io.BytesIO()
+    writer = pymupdf.DocumentWriter(buf)
+    story = pymupdf.Story(html="<p>Staff benefits and office files</p>")  # typeset with ligatures
+    device = writer.begin_page(pymupdf.paper_rect("a4"))
+    story.place(pymupdf.Rect(50, 50, 500, 500))
+    story.draw(device)
+    writer.end_page()
+    writer.close()
+    pages, _ = load_document(buf.getvalue(), "benefits.pdf")
+    assert "benefits" in pages[0].text and "files" in pages[0].text
+    assert "ﬁ" not in pages[0].text
+
+
 def test_docx_loader_paragraphs_and_tables(docx_bytes: bytes) -> None:
     pages, _ = load_document(docx_bytes, "report.docx")
     assert len(pages) == 1

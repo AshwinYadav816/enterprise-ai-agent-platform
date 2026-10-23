@@ -19,11 +19,12 @@ import pymupdf
 import pytest
 from eap_ai import cache as ai_cache
 from eap_ai import llm as ai_llm
+from eap_ai import service as ai_service
 from eap_ai.agents.email import EmailIntent, EmailOutput, EmailTask
 from eap_ai.agents.meeting import ActionItem, MeetingSummary
 from eap_ai.agents.report import Report, ReportSection, ReportType
 from eap_ai.orchestrator.state import Plan, Step
-from eap_ai.schemas import AgentName, AgentRequest, ChatMessage, UserCtx
+from eap_ai.schemas import AgentName, AgentRequest, ChatMessage, DocMeta, UserCtx
 from eap_ai.service import HistorySummary
 from eap_ai.vectorstore import qdrant as ai_qdrant
 from fastapi import FastAPI
@@ -149,6 +150,10 @@ async def test_contract_fake_gateway_matches_real_ai(real_ai: Models) -> None:
     real_ai.smart.structured[MeetingSummary] = MeetingSummary(summary="s")
     real_ai.smart.structured[EmailOutput] = EmailOutput(subject="S", body="B")
     real_ai.smart.structured[Report] = Report(report_type=ReportType.weekly, title="T", period="P")
+    meta = DocMeta(
+        doc_id=str(uuid.uuid4()), org_id=user.org_id, owner_id="u", allowed_roles=["employee"]
+    )
+    await ai_service.ingest_document(pdf_bytes("Sprint 7: beta shipped."), "status.pdf", meta)
     forced = (None, AgentName.chat, AgentName.meeting, AgentName.email, AgentName.report)
     for force in forced:
         req = AgentRequest(query="q", user=user, force_agent=force, transcript="A: hi")
@@ -266,6 +271,11 @@ async def test_report_tool_pdf_with_real_engine(
 ) -> None:
     user = await make_user(db, password=PASSWORD)
     h = await login(client, user)
+    await client.post(  # a report is only written from documents
+        f"{API}/documents",
+        headers=h,
+        files={"file": ("sprint.pdf", pdf_bytes("Sprint 7: beta shipped. Vendor delay."))},
+    )
     real_ai.smart.structured[Report] = Report(
         report_type=ReportType.sprint,
         title="Sprint 7 report",

@@ -1,5 +1,46 @@
 {"question": "How many days of paid annual leave do employees get?", "expected_doc": "hr_policy.pdf", "expected_answer_keywords": ["24 days"], "answerable": true}
+{"question": "How many unused leave days can I carry over, and until when?", "expected_doc": "hr_policy.pdf", "expected_answer_keywords": ["6", "31 March"], "answerable": true}
+{"question": "How far in advance must I request a week of leave?", "expected_doc": "hr_policy.pdf", "expected_answer_keywords": ["10 working days"], "answerable": true}
+{"question": "How many public holidays does Acme observe?", "expected_doc": "hr_policy.pdf", "expected_answer_keywords": ["11"], "answerable": true}
+{"question": "How many paid sick days do employees get?", "expected_doc": "hr_policy.pdf", "expected_answer_keywords": ["10 days"], "answerable": true}
+{"question": "When is a doctor's note needed for sick leave?", "expected_doc": "hr_policy.pdf", "expected_answer_keywords": ["3"], "answerable": true}
+{"question": "How many days of bereavement leave are there?", "expected_doc": "hr_policy.pdf", "expected_answer_keywords": ["5"], "answerable": true}
+{"question": "How many days a week can I work from home?", "expected_doc": "hr_policy.pdf", "expected_answer_keywords": ["2 days"], "answerable": true}
+{"question": "Which days must hybrid employees be in the office?", "expected_doc": "hr_policy.pdf", "expected_answer_keywords": ["Monday", "Wednesday"], "answerable": true}
+{"question": "How much is the home office allowance?", "expected_doc": "hr_policy.pdf", "expected_answer_keywords": ["300"], "answerable": true}
+{"question": "How long is the probation period?", "expected_doc": "hr_policy.pdf", "expected_answer_keywords": ["4 months"], "answerable": true}
+{"question": "What is the notice period for managers after probation?", "expected_doc": "hr_policy.pdf", "expected_answer_keywords": ["60 days"], "answerable": true}
 {"question": "What is the hotel limit per night when travelling?", "expected_doc": "travel_policy.docx", "expected_answer_keywords": ["150", "per night"], "answerable": true}
+{"question": "What is the hotel limit in Tokyo?", "expected_doc": "travel_policy.docx", "expected_answer_keywords": ["210"], "answerable": true}
+{"question": "Can I fly business class on a long flight?", "expected_doc": "travel_policy.docx", "expected_answer_keywords": ["premium economy"], "answerable": true}
+{"question": "What is the meal per diem for international travel?", "expected_doc": "travel_policy.docx", "expected_answer_keywords": ["70"], "answerable": true}
+{"question": "How soon must I submit an expense claim?", "expected_doc": "travel_policy.docx", "expected_answer_keywords": ["30 days"], "answerable": true}
+{"question": "Above what amount are receipts required?", "expected_doc": "travel_policy.docx", "expected_answer_keywords": ["25"], "answerable": true}
+{"question": "What is the mileage rate for using my own car?", "expected_doc": "travel_policy.docx", "expected_answer_keywords": ["0.42"], "answerable": true}
+{"question": "What is the minimum password length?", "expected_doc": "it_security_policy.pdf", "expected_answer_keywords": ["14"], "answerable": true}
+{"question": "How quickly must I report a lost laptop?", "expected_doc": "it_security_policy.pdf", "expected_answer_keywords": ["1 hour"], "answerable": true}
+{"question": "How must containers run?", "expected_doc": "it_security_policy.pdf", "expected_answer_keywords": ["non-root"], "answerable": true}
+{"question": "Can I use a USB stick on my company laptop?", "expected_doc": "it_security_policy.pdf", "expected_answer_keywords": ["blocked"], "answerable": true}
+{"question": "Within how many days must critical security patches be installed?", "expected_doc": "it_security_policy.pdf", "expected_answer_keywords": ["7 days"], "answerable": true}
+{"question": "When is Project Atlas planned to launch publicly?", "expected_doc": "project_atlas_status.docx", "expected_answer_keywords": ["1 December"], "answerable": true}
+{"question": "What is the Project Atlas budget and how much of it has been spent?", "expected_doc": "project_atlas_status.docx", "expected_answer_keywords": ["380000", "61%"], "answerable": true}
+{"question": "Who is the tech lead of Project Atlas?", "expected_doc": "project_atlas_status.docx", "expected_answer_keywords": ["Rohit Mehta"], "answerable": true}
+{"question": "How many pilot customers received the Atlas beta?", "expected_doc": "project_atlas_status.docx", "expected_answer_keywords": ["40"], "answerable": true}
+{"question": "What is the yearly learning budget per employee?", "expected_doc": "benefits_overview.pdf", "expected_answer_keywords": ["1200"], "answerable": true}
+{"question": "How much is the employee referral bonus and when is it paid?", "expected_doc": "benefits_overview.pdf", "expected_answer_keywords": ["1500", "90 days"], "answerable": true}
+{"question": "On which day of the month are salaries paid?", "expected_doc": "benefits_overview.pdf", "expected_answer_keywords": ["28"], "answerable": true}
+{"question": "How much does Acme reimburse for gym memberships?", "expected_doc": "benefits_overview.pdf", "expected_answer_keywords": ["40"], "answerable": true}
 {"question": "What was the Q3 revenue for the North region?", "expected_doc": "q3_sales.xlsx", "expected_answer_keywords": ["120000"], "answerable": true}
+{"question": "Which region had the highest Q3 2026 revenue?", "expected_doc": "q3_sales.xlsx", "expected_answer_keywords": ["East"], "answerable": true}
+{"question": "Where do new employees collect their laptop?", "expected_doc": "onboarding_guide.pptx", "expected_answer_keywords": ["3B"], "answerable": true}
+{"question": "Within how many days must new joiners finish the mandatory trainings?", "expected_doc": "onboarding_guide.pptx", "expected_answer_keywords": ["14 days"], "answerable": true}
 {"question": "What is the company's parental leave policy?", "expected_doc": null, "expected_answer_keywords": [], "answerable": false}
 {"question": "Who won the football world cup in 2022?", "expected_doc": null, "expected_answer_keywords": [], "answerable": false}
+{"question": "Is there a sabbatical programme?", "expected_doc": null, "expected_answer_keywords": [], "answerable": false}
+{"question": "What is the office dress code?", "expected_doc": null, "expected_answer_keywords": [], "answerable": false}
+{"question": "What was Acme's Q4 2026 revenue?", "expected_doc": null, "expected_answer_keywords": [], "answerable": false}
+{"question": "Does Acme offer stock options to employees?", "expected_doc": null, "expected_answer_keywords": [], "answerable": false}
+{"question": "Does the health insurance cover dental treatment?", "expected_doc": null, "expected_answer_keywords": [], "answerable": false}
+{"question": "What is the Wi-Fi password for the office guest network?", "expected_doc": null, "expected_answer_keywords": [], "answerable": false}
+{"question": "Who is the CEO of Acme?", "expected_doc": null, "expected_answer_keywords": [], "answerable": false}
+{"question": "How many vacation days do interns get?", "expected_doc": null, "expected_answer_keywords": [], "answerable": false}

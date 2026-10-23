@@ -53,6 +53,11 @@ def _md_table(rows: Iterable[Sequence[Any]]) -> str:
     return "\n".join(lines)
 
 
+# Expand ligatures ("ﬁ" -> "fi"): Word/LaTeX PDFs use them, and "beneﬁts" would not match
+# "benefits" in search or read well in citations.
+PDF_TEXT_FLAGS = pymupdf.TEXTFLAGS_TEXT & ~pymupdf.TEXT_PRESERVE_LIGATURES
+
+
 def load_pdf(data: bytes, warnings: list[str]) -> list[Page]:
     pages: list[Page] = []
     low_text: list[int] = []
@@ -60,7 +65,7 @@ def load_pdf(data: bytes, warnings: list[str]) -> list[Page]:
         if doc.needs_pass:
             raise UnreadableDocument("This PDF is password-protected; upload an unlocked copy.")
         for i, pg in enumerate(doc, start=1):
-            text = pg.get_text().strip()
+            text = pg.get_text(flags=PDF_TEXT_FLAGS).strip()
             if len(text) < SCANNED_CHARS_PER_PAGE:
                 low_text.append(i)
             if text:

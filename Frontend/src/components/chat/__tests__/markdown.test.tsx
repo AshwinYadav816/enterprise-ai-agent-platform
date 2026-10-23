@@ -2,7 +2,7 @@ import { render, screen } from "@testing-library/react";
 import { describe, expect, it } from "vitest";
 
 import { Markdown } from "@/components/chat/markdown";
-import { cleanSnippet, linkCitations } from "@/lib/chat/citations";
+import { citableText, citedSources, cleanSnippet, linkCitations } from "@/lib/chat/citations";
 import type { Source } from "@/lib/chat/types";
 
 const SOURCES: Source[] = [
@@ -67,5 +67,22 @@ describe("Markdown citations", () => {
       "Acme Leave Policy 2026",
     );
     expect(cleanSnippet("No marker [1] here")).toBe("No marker [1] here");
+  });
+});
+
+describe("citedSources", () => {
+  it("lists only the sources an answer cites", () => {
+    expect(citedSources(SOURCES, ["You get 24 days [1]."]).map((s) => s.n)).toEqual([1]);
+    expect(citedSources(SOURCES, ["I couldn't find this in your documents."])).toEqual([]);
+    expect(citedSources(SOURCES, ["`[2]` is code", "Remote is fine [2]"]).map((s) => s.n)).toEqual([
+      2,
+    ]);
+  });
+
+  it("reads citations from result cards, not their source lists", () => {
+    const research = { output: { answer: "Not found.", cited: [1], sources: [{ n: 2 }] } };
+    expect(citedSources(SOURCES, [citableText(research)])).toEqual([]);
+    const report = { output: {}, markdown: "## Leave\n24 days [1]" };
+    expect(citedSources(SOURCES, [citableText(report)]).map((s) => s.n)).toEqual([1]);
   });
 });

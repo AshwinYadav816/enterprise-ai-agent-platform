@@ -196,3 +196,10 @@ async def test_llm_refusal_marks_not_found(env: FakeChatModel) -> None:
     env.text = f"{NOT_FOUND} Upload a parental leave policy."
     events = await _collect(answer_stream("parental leave?", HR))
     assert events[-1].data["found"] is False and events[-1].data["cited"] == []
+
+
+async def test_uncited_answer_is_replaced_with_not_found(env: FakeChatModel) -> None:
+    await _add("hr_policy", "org1", ["hr"], ["Leave policy: 24 days of annual leave."])
+    env.text = "Employees usually get around 30 days."  # no [n]: not grounded in the documents
+    events = await _collect(answer_stream("how many leave days?", HR))
+    assert events[-1].data == {"answer": NOT_FOUND_REPLY, "found": False, "cited": []}

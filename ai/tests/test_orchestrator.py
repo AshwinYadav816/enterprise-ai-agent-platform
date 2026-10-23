@@ -2,6 +2,7 @@ import hashlib
 from collections.abc import AsyncIterator
 from dataclasses import dataclass
 
+import httpx
 import pytest
 
 from eap_ai import llm, service
@@ -225,6 +226,21 @@ async def test_failing_step_reports_error_and_continues(
     assert events[-1].type == "done" and events[-1].data["errors"] == 2
     synth_prompt = models.smart.calls[-1][1].content
     assert "Failed steps:" in synth_prompt and "report" in synth_prompt
+
+
+async def test_provider_busy_gets_a_clear_message(
+    models: Models, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    async def busy(ctx: AgentContext) -> AsyncIterator[Event]:
+        request = httpx.Request("POST", "https://api.mistral.ai/v1/embeddings")
+        raise httpx.HTTPStatusError("429", request=request, response=httpx.Response(429))
+        yield  # pragma: no cover
+
+    monkeypatch.setitem(graph.AGENTS, AgentName.research, busy)
+    events = await _run(query="How many sick days?", force_agent="research")
+    (error,) = [e for e in events if e.type == "error"]
+    assert error.data["message"] == graph.PROVIDER_BUSY
+    assert events[-1].data["answer"] == graph.PROVIDER_BUSY
 
 
 async def test_agent_input_error_message_is_shown(models: Models) -> None:

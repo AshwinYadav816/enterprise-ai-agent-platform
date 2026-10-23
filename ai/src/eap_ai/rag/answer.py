@@ -1,5 +1,6 @@
 """Grounded answering: sources event -> streamed tokens -> done."""
 
+import logging
 import re
 from collections.abc import AsyncIterator, Sequence
 
@@ -9,6 +10,8 @@ from eap_ai import llm
 from eap_ai.rag.prompts import ANSWER_SYSTEM, NOT_FOUND, NOT_FOUND_REPLY, answer_user_message
 from eap_ai.rag.retriever import retrieve, rewrite_query
 from eap_ai.schemas import ChatMessage, Event, Source, UserCtx
+
+log = logging.getLogger(__name__)
 
 SNIPPET_PREVIEW_CHARS = 300
 _CITATION = re.compile(r"\[(\d+)\]")
@@ -53,8 +56,11 @@ async def answer_stream(
             parts.append(text)
             yield Event(type="token", data={"text": text})
     answer = "".join(parts)
+    cited = cited_numbers(answer, len(sources))
     found = NOT_FOUND not in answer
-    yield Event(
-        type="done",
-        data={"answer": answer, "found": found, "cited": cited_numbers(answer, len(sources))},
-    )
+    if found and not cited:
+        # The model answered without citing any source: treat it as made up and refuse instead.
+        # The final answer (shown and saved) replaces the streamed tokens.
+        log.warning("Uncited answer replaced with not-found (%d sources)", len(sources))
+        answer, found = NOT_FOUND_REPLY, False
+    yield Event(type="done", data={"answer": answer, "found": found, "cited": cited})

@@ -8,6 +8,7 @@ from pydantic import BaseModel, Field
 from eap_ai.agents.base import (
     UNTRUSTED_NOTE,
     AgentContext,
+    AgentInputError,
     ask,
     format_prior_outputs,
     result_event,
@@ -65,6 +66,11 @@ Rules: use only facts from the request, the documents and earlier step outputs; 
 as [n]; never invent numbers, dates, names or progress. If material is thin, say so in a section \
 called "Data gaps" rather than filling in. {UNTRUSTED_NOTE}"""
 
+NO_MATERIAL = (
+    "I couldn't find anything in your documents for this report, so I didn't write one. "
+    "Upload or select documents that cover this period or project."
+)
+
 
 async def run(ctx: AgentContext) -> AsyncIterator[Event]:
     req = ctx.request
@@ -76,8 +82,8 @@ async def run(ctx: AgentContext) -> AsyncIterator[Event]:
         parts.append("Documents:\n" + format_sources(sources))
     if prior := format_prior_outputs(ctx.prior_outputs):
         parts.append(prior)
-    if not sources and not ctx.prior_outputs:
-        parts.append("No documents matched this request.")
+    if not sources and not ctx.prior_outputs:  # nothing to report on: refuse, don't make it up
+        raise AgentInputError(NO_MATERIAL)
 
     yield status_event("Writing the report…")
     report = await ask("smart", Report, REPORT_SYSTEM, "\n\n".join(parts))

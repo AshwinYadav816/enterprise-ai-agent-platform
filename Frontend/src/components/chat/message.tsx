@@ -7,6 +7,7 @@ import { Markdown } from "@/components/chat/markdown";
 import { CopyButton, hasCard, ResultCard } from "@/components/chat/result-card";
 import { SourcesFooter } from "@/components/chat/sources-footer";
 import { Button } from "@/components/ui/button";
+import { citableText, citedSources } from "@/lib/chat/citations";
 import type { Step } from "@/lib/chat/stream-store";
 import type { ErrorData, ResultData, Source } from "@/lib/chat/types";
 import { cn } from "@/lib/utils";
@@ -147,7 +148,9 @@ export function AssistantMessage({
         </p>
       )}
 
-      <SourcesFooter sources={view.sources} />
+      <SourcesFooter
+        sources={citedSources(view.sources, [view.content, ...view.results.map(citableText)])}
+      />
 
       {!streaming && view.status !== "settling" && (
         <div className="mt-2 flex gap-1 font-sans opacity-100 transition-opacity duration-150 md:opacity-0 md:group-focus-within/message:opacity-100 md:group-hover/message:opacity-100">

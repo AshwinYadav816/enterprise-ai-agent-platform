@@ -20,21 +20,13 @@ BACKOFF_MAX_SECONDS = 60.0
 _sleep = asyncio.sleep  # patched in tests
 
 
-def _is_rate_limited(exc: BaseException) -> bool:
-    response = getattr(exc, "response", None)
-    if getattr(response, "status_code", None) == 429:
-        return True
-    msg = str(exc).lower()
-    return "429" in msg or "rate limit" in msg
-
-
 async def _embed_batch(texts: list[str]) -> list[list[float]]:
     embedder = llm.get_embedder()
     for attempt in range(RATE_LIMIT_RETRIES + 1):
         try:
             return await embedder.aembed_documents(texts)
         except Exception as exc:
-            if not _is_rate_limited(exc) or attempt == RATE_LIMIT_RETRIES:
+            if not llm.is_rate_limited(exc) or attempt == RATE_LIMIT_RETRIES:
                 raise
             delay = min(BACKOFF_BASE_SECONDS * 2**attempt, BACKOFF_MAX_SECONDS)
             log.warning("Embedding rate-limited; retry %d in %.0fs", attempt + 1, delay)

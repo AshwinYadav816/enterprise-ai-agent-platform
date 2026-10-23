@@ -1,0 +1,16 @@
+Atlas weekly sync, 20 October 2026
+Attendees: Priya Nair (PM), Rohit Mehta (tech lead), Sara Lindqvist (QA), Daniel Okafor (COO)
+
+Priya: Thanks everyone. Main topics: the pilot feedback, the payment vendor delay and load testing.
+Sara: Pilot feedback is mostly positive. Customers like the invoice download. Three customers asked for a dark mode, and two reported slow page loads on the dashboard.
+Rohit: The slow loads are from the dashboard query. I can fix that this sprint.
+Daniel: What about the payment vendor? Are we still on for the first of December?
+Rohit: Their API is three weeks late. If it isn't ready by 10 November we can't launch online payments on time.
+Daniel: Then we launch on the first of December without online payments and add them later. I don't want to move the launch date.
+Priya: Agreed. Decision: the launch date stays 1 December; online payments may follow in a later release.
+Sara: For load testing I need the staging environment sized like production.
+Rohit: I'll ask the platform team for that by Friday.
+Priya: Action items then. Rohit fixes the dashboard query by 31 October. Rohit requests the production-sized staging environment by 24 October. Sara runs the load test with five thousand users once staging is ready. I'll send the pilot survey to all forty customers by 27 October.
+Daniel: And someone should check with the vendor every week.
+Priya: I'll take that. Open question: do we build dark mode before launch? Let's decide next week.
+Priya: Thanks all.

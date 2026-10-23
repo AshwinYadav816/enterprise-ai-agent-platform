@@ -221,6 +221,12 @@ async def test_report_gathers_docs_and_prior(models: Models) -> None:
     assert md.startswith("# Weekly update") and "## Progress" in md and "## Risks" in md
 
 
+async def test_report_without_material_refuses(models: Models) -> None:
+    with pytest.raises(AgentInputError, match="couldn't find anything"):
+        await _run(report, _ctx("Weekly report on the beta"))
+    assert models.smart.structured_calls == []  # no report written from nothing
+
+
 # --- document ------------------------------------------------------------------------
 
 
