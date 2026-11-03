@@ -1,4 +1,4 @@
- """Evaluate the AI module end to end with REAL models (costs API calls).
+"""Evaluate the AI module end to end with REAL models (costs API calls).
 
     uv run python eval/run_eval.py                 # ingest eval/docs, run QA + routing, judge
     uv run python eval/run_eval.py --no-judge --skip-ingest

@@ -12,6 +12,16 @@ const nextConfig: NextConfig = {
     // instant-navigation validation can never see them and reports every page as "dropped".
     // Validate only segments that opt in with `export const instant`.
     instantInsights: { validationLevel: "manual-warning" },
+    // Self-hosted `next start` buffers forwarded request bodies (rewrites below) up to 10 MB by
+    // default and cuts the rest: allow the API's 25 MB uploads plus multipart overhead.
+    proxyClientMaxBodySize: "26mb",
+  },
+  // Hosted without Nginx (Vercel + a separately hosted API): set BACKEND_URL (server-side, read
+  // at build time) and leave NEXT_PUBLIC_API_URL empty. The browser then calls /api on THIS
+  // origin and the request is forwarded, so the refresh cookie stays first-party (SameSite=Lax).
+  async rewrites() {
+    const backend = process.env.BACKEND_URL?.replace(/\/+$/, "");
+    return backend ? [{ source: "/api/:path*", destination: `${backend}/api/:path*` }] : [];
   },
   // Keep the dev-only Next.js badge away from the user menu and the chat composer.
   devIndicators: { position: "top-right" },

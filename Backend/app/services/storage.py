@@ -85,11 +85,22 @@ class LocalStorage:
 
 
 class S3Storage:
-    def __init__(self, bucket: str, region: str | None) -> None:
+    """AWS S3 or an S3-compatible service (Supabase Storage, Cloudflare R2, Backblaze B2, MinIO)
+    when `endpoint_url` is set. Credentials: AWS_ACCESS_KEY_ID / AWS_SECRET_ACCESS_KEY."""
+
+    def __init__(self, bucket: str, region: str | None, endpoint_url: str | None = None) -> None:
         import boto3  # only needed in S3 mode
+        from botocore.config import Config
 
         self.bucket = bucket
-        self._s3: Any = boto3.client("s3", region_name=region)
+        self.endpoint_url = endpoint_url
+        self._s3: Any = boto3.client(
+            "s3",
+            region_name=region,
+            endpoint_url=endpoint_url,
+            # S3-compatible services expect bucket-in-path URLs, not bucket.host subdomains.
+            config=Config(s3={"addressing_style": "path"}) if endpoint_url else None,
+        )
 
     async def save(self, key: str, data: bytes) -> None:
         _check_key(key)
@@ -105,6 +116,10 @@ class S3Storage:
         await asyncio.to_thread(self._s3.delete_object, Bucket=self.bucket, Key=key)
 
     async def url_or_none(self, key: str, download_name: str) -> str | None:
+        if self.endpoint_url:
+            # Another site's link would need that service's CORS rules for the app's download
+            # (fetch with credentials); serving the bytes ourselves always works.
+            return None
         disposition = f'attachment; filename="{safe_filename(download_name)}"'
         return await asyncio.to_thread(
             self._s3.generate_presigned_url,
@@ -124,7 +139,7 @@ def get_storage() -> Storage:
     if s.storage_backend == "s3":
         if not s.s3_bucket:
             raise RuntimeError("STORAGE_BACKEND=s3 requires S3_BUCKET")
-        return S3Storage(s.s3_bucket, s.s3_region)
+        return S3Storage(s.s3_bucket, s.s3_region, s.s3_endpoint_url)
     return LocalStorage(s.storage_dir)
 
 

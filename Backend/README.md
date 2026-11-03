@@ -104,7 +104,7 @@ AI module** (`eap_ai` reads `.env` from the working directory), so it must conta
 | `JWT_SECRET` | **required** | HMAC key for access tokens, at least 32 characters: `uv run python -c "import secrets; print(secrets.token_urlsafe(48))"` |
 | `ENV` | `dev` | `dev` / `test` / `prod` (`prod` makes the refresh cookie `Secure` → HTTPS required) |
 | `LOG_LEVEL` | `INFO` | JSON logs on stdout, each line with `request_id` |
-| `DATABASE_URL` | `postgresql+asyncpg://eap:eap@127.0.0.1:5432/eap` | app database |
+| `DATABASE_URL` | `postgresql+asyncpg://eap:eap@127.0.0.1:5432/eap` | app database; hosted URLs (`postgres://…?sslmode=require`) are converted automatically |
 | `TEST_DATABASE_URL` | `…/eap_test` | tests only; name must end in `_test` |
 | `REDIS_URL` | `redis://127.0.0.1:6379/0` | rate limits, stats cache (+ the AI module's embedding cache) |
 | `ACCESS_TOKEN_MINUTES` / `REFRESH_TOKEN_DAYS` | `15` / `7` | token lifetimes |
@@ -112,6 +112,7 @@ AI module** (`eap_ai` reads `.env` from the working directory), so it must conta
 | `STORAGE_BACKEND` | `local` | `local` or `s3` |
 | `STORAGE_DIR` | `data/uploads` | local uploads (mount a volume in Docker) |
 | `S3_BUCKET` / `S3_REGION` | — | when `STORAGE_BACKEND=s3` (AWS credentials from the usual AWS env/role) |
+| `S3_ENDPOINT_URL` | — | S3-compatible service (Supabase Storage, Cloudflare R2, Backblaze B2): files are then served through the API |
 | `MAX_UPLOAD_MB` | `25` | document upload limit |
 | `MAX_JSON_BODY_KB` | `1024` | limit for every non-upload request body |
 | `AI_MODE` | `fake` | `real` calls the AI module (needs the AI variables below) |
@@ -149,6 +150,9 @@ docker compose exec api python scripts/seed_demo.py
 ```
 
 ## Notes for deployment (Member 4)
+
+**Free managed hosting (Vercel + Render + Supabase + Upstash + Qdrant Cloud):** step-by-step
+in [`docs/DEPLOY.md`](docs/DEPLOY.md). The notes below are for a self-hosted server with Nginx.
 
 - **One `.env`** for the backend container must include the AI module's variables
   (`MISTRAL_API_KEY`, `QDRANT_URL`, model names) plus `JWT_SECRET`, `AI_MODE=real`, `ENV=prod`.

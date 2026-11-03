@@ -35,9 +35,10 @@ the same host name or the sign-in cookie is not sent. Demo users (from the backe
 
 ## Environment
 
-| variable              | dev                     | production                                                   |
-| --------------------- | ----------------------- | ------------------------------------------------------------ |
-| `NEXT_PUBLIC_API_URL` | `http://localhost:8000` | **empty** = same origin (Nginx routes `/api` to the backend) |
+| variable              | dev                     | production                                                                    |
+| --------------------- | ----------------------- | ----------------------------------------------------------------------------- |
+| `NEXT_PUBLIC_API_URL` | `http://localhost:8000` | **empty** = same origin (Nginx routes `/api` to the backend)                  |
+| `BACKEND_URL`         | (unset)                 | Vercel / no Nginx: the API address that `/api/*` is forwarded to (build time) |
 
 It is inlined into the browser bundle at **build** time (a Docker build argument, not a runtime
 variable).
@@ -99,6 +100,10 @@ runtime image (~340 MB) that runs `node server.js` as the non-root `node` user o
 health check on `/login`. `.dockerignore` is a whitelist, so `.env*` never enters the image.
 
 ## Notes for deployment (Member 4)
+
+**On Vercel (no Nginx):** set `BACKEND_URL` to the API's address and leave `NEXT_PUBLIC_API_URL`
+unset; `next.config.ts` then forwards `/api/*` to the API, so the browser sees one address and the
+refresh cookie keeps working. Full walkthrough: [`../Backend/docs/DEPLOY.md`](../Backend/docs/DEPLOY.md).
 
 Serve the frontend and the API on **one domain**: Nginx sends `/api` to the backend and
 everything else to this container. The refresh cookie (httpOnly, path `/api/v1/auth`,

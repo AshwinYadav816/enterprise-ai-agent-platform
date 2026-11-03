@@ -3,8 +3,9 @@
 from functools import lru_cache
 from pathlib import Path
 from typing import Literal
+from urllib.parse import parse_qsl, quote, unquote, urlencode
 
-from pydantic import Field, SecretStr
+from pydantic import Field, SecretStr, field_validator
 from pydantic_settings import BaseSettings, SettingsConfigDict
 
 
@@ -16,7 +17,7 @@ class Settings(BaseSettings):
     env: Literal["dev", "test", "prod"] = "dev"
     log_level: str = "INFO"
 
-    # Datastores
+    # Datastores. Hosted Postgres URLs (postgres://…?sslmode=require) are converted for asyncpg.
     database_url: str = "postgresql+asyncpg://eap:eap@127.0.0.1:5432/eap"
     test_database_url: str = "postgresql+asyncpg://eap:eap@127.0.0.1:5432/eap_test"
     redis_url: str = "redis://127.0.0.1:6379/0"
@@ -34,6 +35,7 @@ class Settings(BaseSettings):
     storage_dir: Path = Path("data/uploads")
     s3_bucket: str | None = None
     s3_region: str | None = None
+    s3_endpoint_url: str | None = None  # S3-compatible service (Supabase Storage, R2, B2…)
     max_upload_mb: int = 25
     max_json_body_kb: int = 1024  # all non-upload request bodies
     allowed_extensions: list[str] = ["pdf", "docx", "pptx", "xlsx"]
@@ -49,6 +51,60 @@ class Settings(BaseSettings):
 
     # Chat streaming
     sse_heartbeat_seconds: float = 15  # ": ping" comment while waiting, keeps proxies from closing
+
+    @field_validator("database_url", "test_database_url")
+    @classmethod
+    def _asyncpg_url(cls, url: str) -> str:
+        return asyncpg_url(url)
+
+
+def asyncpg_url(url: str) -> str:
+    """Accept the URL a hosted Postgres shows (Neon, Supabase, Render, Railway):
+    - postgres(ql)://… → postgresql+asyncpg://…
+    - a password with special characters (Supabase often has @ : / #) is percent-encoded, so the
+      URL is read correctly whether or not the user encoded it
+    - libpq-only query options → asyncpg's: sslmode=require/verify-* becomes ssl=require,
+      channel_binding etc. are dropped; Supabase / Neon hosts get ssl=require by default."""
+    scheme, sep, rest = url.partition("://")
+    if not sep:
+        return url
+    if scheme in ("postgres", "postgresql"):
+        scheme = "postgresql+asyncpg"
+    authority, slash, path = rest.partition("/")
+    userinfo, at, hostport = authority.rpartition("@")  # the LAST @ ends the password
+    if at:
+        user, colon, password = userinfo.partition(":")
+        userinfo = f"{user}{colon}{quote(unquote(password), safe='')}" if colon else user
+        authority = f"{userinfo}@{hostport}"
+    path, qmark, raw_query = path.partition("?")
+
+    query = []
+    for key, value in parse_qsl(raw_query, keep_blank_values=True):
+        if key == "sslmode":
+            if value not in ("disable", "allow"):
+                query.append(("ssl", "require"))
+        elif key not in _LIBPQ_ONLY:
+            query.append((key, value))
+    host = hostport.rsplit(":", 1)[0].lower()
+    if host.endswith(_ALWAYS_TLS_HOSTS) and not any(k == "ssl" for k, _ in query):
+        if "sslmode=disable" not in raw_query:
+            query.append(("ssl", "require"))
+    encoded = urlencode(query)
+    return f"{scheme}://{authority}{slash}{path}" + (f"?{encoded}" if encoded else "")
+
+
+# Managed Postgres that always offers TLS: encrypt even if the URL didn't ask for it.
+_ALWAYS_TLS_HOSTS = (".supabase.com", ".supabase.co", ".neon.tech")
+
+# libpq connection options asyncpg rejects as unknown keyword arguments
+_LIBPQ_ONLY = {
+    "channel_binding",
+    "sslrootcert",
+    "sslcert",
+    "sslkey",
+    "gssencmode",
+    "target_session_attrs",
+}
 
 
 @lru_cache
